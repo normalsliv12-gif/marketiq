@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketIQ — Test Your Market Intelligence</title>
+    <meta name="description" content="Competitive rating system for market intelligence. Solve hypothetical market puzzles. Get rated. Climb the leaderboard.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- LOADING SCREEN -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-brand">MarketIQ</div>
+            <div class="loading-bar-track"><div class="loading-bar-fill" id="loadingBarFill"></div></div>
+            <p class="loading-text" id="loadingText">Connecting to server...</p>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- NAVBAR -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="nav-brand" onclick="showSection('home')" style="cursor:pointer">
+                <span class="brand-mark">M</span>
+                <span class="brand-name">MarketIQ</span>
+            </div>
+            <div class="nav-links" id="navLinks">
+                <a href="#" class="nav-link" onclick="return navTo('home')">Home</a>
+                <a href="#" class="nav-link" onclick="return navTo('puzzles')">Daily Puzzles</a>
+                <a href="#" class="nav-link" onclick="return navTo('thrill')">Thrill Round</a>
+                <a href="#" class="nav-link" onclick="return navTo('leaderboard')">Leaderboard</a>
+                <a href="#" class="nav-link" onclick="return navTo('profile')">Profile</a>
+            </div>
+            <div class="nav-user" id="navUser">
+                <button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-nav" id="mobileNav">
+        <button class="mnav-btn" onclick="navTo('home')" data-section="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Home</span>
+        </button>
+        <button class="mnav-btn" onclick="navTo('puzzles')" data-section="puzzles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+            <span>Puzzles</span>
+        </button>
+        <button class="mnav-btn thrill" onclick="navTo('thrill')" data-section="thrill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>Thrill</span>
+        </button>
+        <button class="mnav-btn" onclick="navTo('leaderboard')" data-section="leaderboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
+            <span>Ranks</span>
+        </button>
+        <button class="mnav-btn" onclick="navTo('profile')" data-section="profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Profile</span>
+        </button>
+    </nav>
+
+    <!-- ==================== LOGIN ==================== -->
+    <section id="loginSection" class="section active">
+        <div class="container">
+            <div class="login-wrap">
+                <div class="login-box">
+                    <div class="login-logo">
+                        <div class="login-logo-mark">M</div>
+                        <h1>MarketIQ</h1>
+                        <p>Competitive rating for market intelligence</p>
+                    </div>
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="usernameInput">Username</label>
+                            <input type="text" id="usernameInput" placeholder="Enter or create a username" maxlength="20" minlength="3" required autocomplete="off" spellcheck="false">
+                            <span class="form-hint">Same username = same account, any device</span>
+                        </div>
+                        <button type="submit" class="btn-primary btn-full" id="loginBtn">
+                            Start Competing
+                        </button>
+                    </form>
+                    <div class="login-pills">
+                        <span class="pill">No real money</span>
+                        <span class="pill">No real stocks</span>
+                        <span class="pill">Pure skill</span>
+                    </div>
+                </div>
+                <div class="login-side">
+                    <div class="login-quote">"The only platform that rates market thinking — not luck."</div>
+                    <div class="login-metrics">
+                        <div class="lm-item"><div class="lm-val mono">1,200</div><div class="lm-key">Starting Rating</div></div>
+                        <div class="lm-item"><div class="lm-val mono">+15</div><div class="lm-key">Best Decision</div></div>
+                        <div class="lm-item"><div class="lm-val mono">−10</div><div class="lm-key">Poor Decision</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== HOME ==================== -->
+    <section id="homeSection" class="section">
+        <div class="hero-bg">
+            <div class="hero-grid"></div>
+            <div class="container">
+                <div class="hero">
+                    <div class="hero-tag">Beta — Testing Phase</div>
+                    <h1 class="hero-h1">Test Your <span class="hero-accent">Market Intelligence</span></h1>
+                    <p class="hero-sub">Compete in hypothetical market puzzles. Get rated. Climb the global leaderboard. No real money — pure analytical skill.</p>
+                    <div class="hero-btns">
+                        <button class="btn-primary btn-large" onclick="showSection('puzzles')">
+                            Start Today's Puzzles <span class="btn-arrow">→</span>
+                        </button>
+                        <button class="btn-ghost btn-large" onclick="showSection('leaderboard')">View Leaderboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="sb-label">Your Stats</div>
+                <div class="sb-items">
+                    <div class="sb-item">
+                        <div class="sb-val mono" id="userRating">1200</div>
+                        <div class="sb-key">Rating</div>
+                    </div>
+                    <div class="sb-div"></div>
+                    <div class="sb-item">
+                        <div class="sb-val mono" id="userAccuracy">—</div>
+                        <div class="sb-key">Accuracy</div>
+                    </div>
+                    <div class="sb-div"></div>
+                    <div class="sb-item">
+                        <div class="sb-val mono" id="userStreak">0</div>
+                        <div class="sb-key">Streak</div>
+                    </div>
+                    <div class="sb-div"></div>
+                    <div class="sb-item">
+                        <div class="sb-val mono" id="userPuzzles">0</div>
+                        <div class="sb-key">Puzzles</div>
+                    </div>
+                    <div class="sb-div"></div>
+                    <div class="sb-item">
+                        <div class="sb-val mono accent" id="dailyRemaining">3</div>
+                        <div class="sb-key">Remaining Today</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <div class="qa-card" onclick="showSection('puzzles')">
+                    <div class="qa-icon cyan">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    </div>
+                    <div class="qa-body">
+                        <h3>Daily Puzzles</h3>
+                        <p>3 structured scenarios per day. Decisions rated Optimal → Poor.</p>
+                    </div>
+                    <span class="qa-arrow">→</span>
+                </div>
+                <div class="qa-card thrill-qa" onclick="showSection('thrill')">
+                    <div class="qa-icon orange">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
+                    <div class="qa-body">
+                        <h3>Thrill Round</h3>
+                        <p>60 seconds. One high-volatility scenario. Maximum pressure.</p>
+                    </div>
+                    <span class="qa-arrow">→</span>
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section-block">
+                <h2 class="block-title">How It Works</h2>
+                <p class="block-sub">No luck involved. Every rating point is earned through decision quality.</p>
+                <div class="how-grid">
+                    <div class="how-card">
+                        <div class="how-num">01</div>
+                        <h3>Analyze the Scenario</h3>
+                        <p>Read a hypothetical market situation. Study the chart and context. No real data — purely analytical.</p>
+                    </div>
+                    <div class="how-card">
+                        <div class="how-num">02</div>
+                        <h3>Make Your Decision</h3>
+                        <p>Choose from 4 options. Each is classified by quality — not just right/wrong, but how good your thinking is.</p>
+                    </div>
+                    <div class="how-card">
+                        <div class="how-num">03</div>
+                        <h3>Rating Updates Instantly</h3>
+                        <p>Optimal +15 · Good +8 · Risky +3 · Poor −10. Consistent quality builds lasting rating.</p>
+                    </div>
+                    <div class="how-card">
+                        <div class="how-num">04</div>
+                        <h3>Compete Globally</h3>
+                        <p>Your rating is visible to everyone. The leaderboard updates in real time. Prove your edge.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="disclaimer-bar">
+                <strong>Disclaimer:</strong> MarketIQ does not involve real money, real trading, or financial advice. All scenarios are hypothetical and created purely for skill assessment.
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== DAILY PUZZLES ==================== -->
+    <section id="puzzlesSection" class="section">
+        <div class="container">
+            <div class="section-top-row">
+                <div>
+                    <h1>Daily Puzzles</h1>
+                    <p class="section-sub">3 hypothetical market scenarios · resets every 24 hours</p>
+                </div>
+                <div class="puzzle-progress">
+                    <div class="progress-dots">
+                        <span class="pdot" id="dot0"></span>
+                        <span class="pdot" id="dot1"></span>
+                        <span class="pdot" id="dot2"></span>
+                    </div>
+                    <div class="remaining-tag" id="puzzlesRemaining">3 remaining</div>
+                </div>
+            </div>
+
+            <div id="puzzleContainer" class="puzzle-card"></div>
+
+            <div id="noPuzzlesMessage" class="empty-state" style="display:none">
+                <div class="empty-check">✓</div>
+                <h2>All caught up for today</h2>
+                <p>Come back tomorrow for 3 new puzzles. Your rating is live on the leaderboard.</p>
+                <div class="empty-btns">
+                    <button class="btn-primary" onclick="showSection('thrill')">Try Thrill Round</button>
+                    <button class="btn-ghost" onclick="showSection('leaderboard')">View Leaderboard</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== THRILL ROUND ==================== -->
+    <section id="thrillSection" class="section">
+        <div class="container">
+            <div class="section-top-row">
+                <div>
+                    <h1>Thrill Round</h1>
+                    <p class="section-sub">One scenario · 60 seconds · high stakes</p>
+                </div>
+            </div>
+            <div id="thrillStatus" class="thrill-status-wrap"></div>
+            <div id="thrillPuzzleContainer"></div>
+        </div>
+    </section>
+
+    <!-- ==================== LEADERBOARD ==================== -->
+    <section id="leaderboardSection" class="section">
+        <div class="container">
+            <div class="section-top-row">
+                <div>
+                    <h1>Global Leaderboard</h1>
+                    <p class="section-sub">Top 20 competitors · updated in real time</p>
+                </div>
+                <div class="live-chip">
+                    <span class="live-dot-anim"></span>
+                    LIVE
+                </div>
+            </div>
+
+            <div class="leaderboard-wrap">
+                <div class="lb-head">
+                    <div class="lbc rank">Rank</div>
+                    <div class="lbc username">Username</div>
+                    <div class="lbc rating">Rating</div>
+                    <div class="lbc accuracy">Accuracy</div>
+                    <div class="lbc puzzles">Puzzles</div>
+                </div>
+                <div id="leaderboardBody">
+                    <div class="lb-loading">Loading rankings...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== PROFILE ==================== -->
+    <section id="profileSection" class="section">
+        <div class="container">
+            <div class="profile-top">
+                <div class="profile-left">
+                    <div class="profile-avatar" id="profileAvatar">M</div>
+                    <div>
+                        <h1 id="profileUsername">Username</h1>
+                        <div class="profile-global-rank" id="profileRankBadge">#— Global Rank</div>
+                    </div>
+                </div>
+                <div class="profile-right">
+                    <div class="profile-rating-label">Rating</div>
+                    <div class="profile-rating-num mono" id="profileRating">1200</div>
+                </div>
+            </div>
+
+            <div class="profile-stat-row">
+                <div class="ps-card">
+                    <div class="ps-val mono" id="profileAccuracy">0%</div>
+                    <div class="ps-key">Accuracy</div>
+                </div>
+                <div class="ps-card">
+                    <div class="ps-val mono" id="profilePuzzles">0</div>
+                    <div class="ps-key">Total Puzzles</div>
+                </div>
+                <div class="ps-card">
+                    <div class="ps-val mono" id="profileStreak">0</div>
+                    <div class="ps-key">Day Streak</div>
+                </div>
+            </div>
+
+            <div class="profile-sections">
+                <div class="profile-section-card">
+                    <h2>Decision Breakdown</h2>
+                    <div class="breakdown">
+                        <div class="bd-row">
+                            <span class="bd-label optimal">Optimal</span>
+                            <div class="bd-bar-track"><div class="bd-bar optimal" id="barOptimal" style="width:0%"></div></div>
+                            <span class="bd-num" id="optimalCount">0</span>
+                        </div>
+                        <div class="bd-row">
+                            <span class="bd-label good">Good</span>
+                            <div class="bd-bar-track"><div class="bd-bar good" id="barGood" style="width:0%"></div></div>
+                            <span class="bd-num" id="goodCount">0</span>
+                        </div>
+                        <div class="bd-row">
+                            <span class="bd-label risky">Risky</span>
+                            <div class="bd-bar-track"><div class="bd-bar risky" id="barRisky" style="width:0%"></div></div>
+                            <span class="bd-num" id="riskyCount">0</span>
+                        </div>
+                        <div class="bd-row">
+                            <span class="bd-label poor">Poor</span>
+                            <div class="bd-bar-track"><div class="bd-bar poor" id="barPoor" style="width:0%"></div></div>
+                            <span class="bd-num" id="poorCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-section-card">
+                    <h2>Recent Activity</h2>
+                    <div id="recentActivity">
+                        <p class="empty-activity">No activity yet. Start solving puzzles!</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-secondary btn-full logout-btn" onclick="logout()">Sign Out</button>
+        </div>
+    </section>
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- APP SCRIPTS -->
+    <script src="firebase-config.js"></script>
+    <script src="puzzles.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
