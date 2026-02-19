@@ -254,12 +254,52 @@ function loadDailyPuzzle() {
     selectedOption = null;
     renderPuzzle(document.getElementById('puzzleContainer'), currentPuzzle, false);
 }
+function renderChart(data) {
+    if (!window.LightweightCharts) {
+        console.error("LightweightCharts not loaded");
+        return;
+    }
+
+    const container = document.getElementById('chartContainer');
+    if (!container) {
+        console.error("Chart container not found");
+        return;
+    }
+
+    const chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth,
+        height: 320,
+        layout: {
+            background: { color: '#0f172a' },
+            textColor: '#d1d5db',
+        },
+        grid: {
+            vertLines: { color: '#1f2937' },
+            horzLines: { color: '#1f2937' },
+        },
+        crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: '#374151' },
+        timeScale: { borderColor: '#374151' }
+    });
+
+    const candleSeries = chart.addCandlestickSeries();
+    candleSeries.setData(data);
+
+    window.addEventListener('resize', () => {
+        chart.applyOptions({
+            width: container.clientWidth
+        });
+    });
+}
 
 function renderPuzzle(container, puzzle, isThrill) {
     const label = isThrill ? 'THRILL ROUND' : `Puzzle ${(currentUser.dailyPuzzlesCompleted ?? 0) + 1} of ${DAILY_PUZZLES.length}`;
-    const chartHTML = puzzle.chartImage
-        ? `<div class="puzzle-chart"><img src="${puzzle.chartImage}" alt="Chart"></div>`
-        : `<div class="puzzle-chart">[ Chart Image Placeholder — add URL in puzzles.js ]</div>`;
+    const chartHTML = `
+    <div class="puzzle-chart">
+        <div id="chartContainer" style="width:100%; height:320px;"></div>
+    </div>
+`;
+
 
     container.innerHTML = `
         <div class="puzzle-label">${label}</div>
@@ -290,6 +330,13 @@ function renderPuzzle(container, puzzle, isThrill) {
         </button>
         <div id="feedbackArea_${isThrill ? 'thrill' : 'daily'}"></div>
     `;
+// Delay slightly so DOM renders first
+setTimeout(() => {
+    if (puzzle.chartData) {
+        renderChart(puzzle.chartData);
+    }
+}, 50);
+
 }
 
 function selectOption(btn, isThrill) {
