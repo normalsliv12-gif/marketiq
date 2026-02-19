@@ -7,21 +7,20 @@ const DAILY_PUZZLES = [
         id: 1,
         title: "Breakout at Resistance",
         chartData: [
-            // 3-week consolidation pattern
             {time:"2024-03-01",open:49.80,high:50.20,low:49.50,close:50.10},
             {time:"2024-03-04",open:50.15,high:50.60,low:49.90,close:50.40},
             {time:"2024-03-05",open:50.40,high:51.10,low:50.20,close:50.95},
             {time:"2024-03-06",open:51.00,high:51.80,low:50.70,close:51.60},
-            {time:"2024-03-07",open:51.65,high:52.50,low:51.30,close:52.20}, // Test 1
+            {time:"2024-03-07",open:51.65,high:52.50,low:51.30,close:52.20},
             {time:"2024-03-08",open:52.25,high:52.55,low:51.40,close:51.70},
             {time:"2024-03-11",open:51.65,high:51.90,low:51.10,close:51.50},
             {time:"2024-03-12",open:51.55,high:52.00,low:51.20,close:51.85},
             {time:"2024-03-13",open:51.90,high:52.30,low:51.65,close:52.15},
-            {time:"2024-03-14",open:52.20,high:52.50,low:51.85,close:52.10}, // Test 2
+            {time:"2024-03-14",open:52.20,high:52.50,low:51.85,close:52.10},
             {time:"2024-03-15",open:52.05,high:52.25,low:51.60,close:51.80},
             {time:"2024-03-18",open:51.75,high:52.10,low:51.40,close:51.95},
             {time:"2024-03-19",open:52.00,high:52.35,low:51.75,close:52.20},
-            {time:"2024-03-20",open:52.25,high:52.50,low:52.00,close:52.40}, // Test 3 (current)
+            {time:"2024-03-20",open:52.25,high:52.50,low:52.00,close:52.40},
         ],
         context: "Stock XYZ consolidating in $50–$52.50 range for 3 weeks. Volume declining. Today testing upper resistance $52.50 for third time. Market neutral. 50-day MA at $49.80.",
         timeframe: "Daily Chart · 3-Month View",
@@ -43,14 +42,12 @@ const DAILY_PUZZLES = [
         id:2,
         title:"Earnings Gap Analysis",
         chartData:[
-            // Pre-earnings trend
             {time:"2024-02-20",open:70.50,high:71.20,low:70.10,close:70.90},
             {time:"2024-02-21",open:70.95,high:71.50,low:70.60,close:71.30},
             {time:"2024-02-22",open:71.25,high:72.00,low:71.00,close:71.80},
             {time:"2024-02-23",open:71.85,high:72.20,low:71.40,close:71.95},
-            {time:"2024-02-26",open:72.00,high:78.20,low:71.90,close:77.50}, // Gap up
-            // Post-gap candles (intraday represented as daily)
-            {time:"2024-02-27",open:77.50,high:77.80,low:76.10,close:76.50}, // Current price
+            {time:"2024-02-26",open:72.00,high:78.20,low:71.90,close:77.50},
+            {time:"2024-02-27",open:77.50,high:77.80,low:76.10,close:76.50},
         ],
         context:"Stock ABC beat earnings 12%. Gapped up 8% ($72→$78). Now at $76.50, 30min post-open. Declining volume. Market flat. Sector peers +1-2%.",
         timeframe:"Daily Chart (Gap Day)",
@@ -78,7 +75,7 @@ const DAILY_PUZZLES = [
             {time:"2024-03-06",open:104,high:105,low:103,close:104.5},
             {time:"2024-03-07",open:104.5,high:105,low:104,close:104.8},
             {time:"2024-03-08",open:104.8,high:105,low:104.5,close:104.9},
-            {time:"2024-03-11",open:105,high:108,low:104.8,close:107}, // Breakout
+            {time:"2024-03-11",open:105,high:108,low:104.8,close:107},
         ],
         context:"Ascending triangle with repeated resistance at 105. Last candle shows strong momentum closing near highs.",
         timeframe:"Daily Chart",
@@ -105,8 +102,8 @@ const DAILY_PUZZLES = [
             {time:"2024-02-05",open:205,high:207,low:203,close:206},
             {time:"2024-02-06",open:206,high:208,low:204,close:207},
             {time:"2024-02-07",open:207,high:209,low:205,close:208},
-            {time:"2024-02-08",open:208,high:212,low:204,close:205}, // Sweep + reversal
-            {time:"2024-02-09",open:205,high:206,low:200,close:201}, // Bearish follow-through
+            {time:"2024-02-08",open:208,high:212,low:204,close:205},
+            {time:"2024-02-09",open:205,high:206,low:200,close:201},
         ],
         context:"Equal highs near 208-209. Price aggressively broke above 210 then reversed strongly with bearish close.",
         timeframe:"4H Chart",
@@ -119,7 +116,6 @@ const DAILY_PUZZLES = [
         ],
         explanation:{
             optimal:"Equal highs attracted breakout traders. Sharp rejection = stop-hunt liquidity grab + distribution.",
-            good:"N/A",
             risky:"Structure clearly shows engineered liquidity sweep, not randomness.",
             poor:"Continuation failed due to strong bearish close."
         }
@@ -128,7 +124,6 @@ const DAILY_PUZZLES = [
         id:5,
         title:"Downtrend Reversal Signal",
         chartData:[
-            // 2-month downtrend
             {time:"2024-01-02",open:43,high:44,low:41.5,close:42},
             {time:"2024-01-03",open:42,high:42.5,low:39.5,close:40},
             {time:"2024-01-04",open:40,high:41,low:37,close:38},
@@ -137,7 +132,7 @@ const DAILY_PUZZLES = [
             {time:"2024-01-09",open:34,high:35,low:31,close:32},
             {time:"2024-01-10",open:32,high:32.5,low:29,close:30},
             {time:"2024-01-11",open:30,high:31,low:27.5,close:28.5},
-            {time:"2024-01-12",open:28.5,high:29,low:26,close:28}, // Hammer (long lower wick)
+            {time:"2024-01-12",open:28.5,high:29,low:26,close:28},
         ],
         context:"Stock DEF down 35% in 2 months. Today: hammer candlestick with long lower wick on 1.8x volume at $28 support. RSI=32. No news.",
         timeframe:"Daily Chart · 6-Month View",
@@ -164,7 +159,7 @@ const THRILL_PUZZLES=[
         chartData:[
             {time:"2024-03-15T09:30:00",open:150,high:150.5,low:149.8,close:150.2},
             {time:"2024-03-15T09:31:00",open:150.2,high:150.3,low:149.9,close:150.1},
-            {time:"2024-03-15T09:32:00",open:150.1,high:150.2,low:123,close:123.5}, // Flash crash
+            {time:"2024-03-15T09:32:00",open:150.1,high:150.2,low:123,close:123.5},
         ],
         context:"Large-cap stock drops 18% in 90 seconds on 15x volume. No news. Circuit breaker triggered. Halted 5min. Decide for when trading resumes.",
         timeframe:"1-Min Chart · Real-Time",
@@ -188,8 +183,8 @@ const THRILL_PUZZLES=[
         chartData:[
             {time:"2024-02-10",open:100,high:101,low:99.5,close:100.5},
             {time:"2024-02-13",open:100.5,high:102,low:100,close:101.5},
-            {time:"2024-02-14",open:101.5,high:110,low:101,close:108}, // Strong run
-            {time:"2024-02-15",open:108,high:108.5,low:98,close:98}, // VIX spike day
+            {time:"2024-02-14",open:101.5,high:110,low:101,close:108},
+            {time:"2024-02-15",open:108,high:108.5,low:98,close:98},
         ],
         context:"VIX spiked 14→31 in 15min. S&P down 2.8%. Your tech position (entry $100, peak $108) now $98. Extreme put buying. No catalyst identified.",
         timeframe:"Real-Time",
@@ -212,7 +207,7 @@ const THRILL_PUZZLES=[
         title:"Fed Emergency Announcement",
         chartData:[
             {time:"2024-03-18",open:450,high:452,low:448,close:450},
-            {time:"2024-03-19",open:450,high:464,low:449,close:463}, // Emergency rate cut, futures surge
+            {time:"2024-03-19",open:450,high:464,low:449,close:463},
         ],
         context:"Fed unscheduled release: emergency 50bp rate cut. Futures surge 3.2% in 4min. You're 70% cash. Move already priced in significantly.",
         timeframe:"Live Market",
