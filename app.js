@@ -1,19 +1,17 @@
 // ============================================================
-//  MARKETIQ — Main Application Logic (CHART-FIXED VERSION)
+//  MARKETIQ — Main Application Logic
+//  Firebase Firestore + Full Game Logic
 // ============================================================
 
 // ===== STATE =====
-let currentUser = null;
+let currentUser   = null;   // { username, ...firestoreData }
 let currentPuzzle = null;
 let selectedOption = null;
-let thrillTimer = null;
+let thrillTimer    = null;
 let thrillRemaining = 60;
-let leaderboardUnsubscribe = null;
+let leaderboardUnsubscribe = null; // for real-time listener
 
-// ===== CHART INSTANCE (GLOBAL) =====
-let chartInstance = null;
-
-// ===== FIRESTORE =====
+// ===== FIRESTORE COLLECTION =====
 const USERS_COL = "users";
 
 // ===== INIT =====
@@ -23,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
     animateLoadingBar();
+
+    // Check saved session
     const savedUsername = localStorage.getItem('miq_session');
 
     if (savedUsername) {
@@ -35,13 +35,14 @@ async function initApp() {
                 updateNavUser();
                 updateMobileNav('home');
             } else {
+                // User in storage but not in Firestore (cleared?)
                 localStorage.removeItem('miq_session');
                 hideLoading();
                 showSection('login');
             }
         } catch (err) {
             console.error("Error restoring session:", err);
-            hideLoading("Connection error — check Firebase setup");
+            hideLoading("Connection error — check your Firebase setup");
             showSection('login');
         }
     } else {
@@ -83,6 +84,7 @@ function showSection(name) {
 
     updateMobileNav(name);
 
+    // Section-specific logic
     if (name === 'home')        { updateHomeStats(); }
     if (name === 'puzzles')     { loadDailyPuzzle(); }
     if (name === 'thrill')      { loadThrillStatus(); }
@@ -92,12 +94,6 @@ function showSection(name) {
         leaderboardUnsubscribe();
         leaderboardUnsubscribe = null;
     }
-    
-    // Destroy chart when leaving puzzle sections
-    if (!['puzzles', 'thrill'].includes(name)) {
-        destroyChart();
-    }
-    
     return false;
 }
 
@@ -154,9 +150,11 @@ async function handleLogin(event) {
         const snap = await ref.get();
 
         if (snap.exists) {
+            // Returning user
             currentUser = snap.data();
             showToast(`Welcome back, ${username}! Rating: ${currentUser.rating}`, 'success');
         } else {
+            // New user
             const newUser = {
                 username,
                 rating: 1200,
@@ -193,7 +191,6 @@ async function handleLogin(event) {
 
 function logout() {
     if (leaderboardUnsubscribe) { leaderboardUnsubscribe(); leaderboardUnsubscribe = null; }
-    destroyChart();
     currentUser = null;
     localStorage.removeItem('miq_session');
     updateNavUser();
@@ -210,13 +207,13 @@ function updateHomeStats() {
     setEl('userAccuracy', currentUser.puzzlesSolved > 0 ? `${currentUser.accuracy}%` : '—');
     setEl('userStreak', currentUser.streak);
     setEl('userPuzzles', currentUser.puzzlesSolved);
-    const rem = Math.max(0, 5 - currentUser.dailyPuzzlesCompleted);
+    const rem = Math.max(0, 3 - currentUser.dailyPuzzlesCompleted);
     setEl('dailyRemaining', rem);
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
 }
 
 function updateProgressDots(completed) {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
         const dot = document.getElementById('dot' + i);
         if (!dot) continue;
         dot.classList.remove('done', 'current');
@@ -232,6 +229,7 @@ function resetDailyIfNeeded() {
     if (currentUser.lastPlayedDate !== today) {
         currentUser.dailyPuzzlesCompleted = 0;
         currentUser.lastPlayedDate = today;
+        // Don't save to Firestore yet — will save when they answer
     }
 }
 
@@ -240,7 +238,7 @@ function loadDailyPuzzle() {
     resetDailyIfNeeded();
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
 
-    const remaining = 5 - currentUser.dailyPuzzlesCompleted;
+    const remaining = 3 - currentUser.dailyPuzzlesCompleted;
     setEl('puzzlesRemaining', `${Math.max(0, remaining)} remaining`);
 
     if (currentUser.dailyPuzzlesCompleted >= DAILY_PUZZLES.length) {
@@ -258,16 +256,10 @@ function loadDailyPuzzle() {
 }
 
 function renderPuzzle(container, puzzle, isThrill) {
-    // Destroy any existing chart first
-    destroyChart();
-    
     const label = isThrill ? 'THRILL ROUND' : `Puzzle ${(currentUser.dailyPuzzlesCompleted ?? 0) + 1} of ${DAILY_PUZZLES.length}`;
-    
-    const chartHTML = `
-        <div class="puzzle-chart">
-            <div id="chartContainer"></div>
-        </div>
-    `;
+    const chartHTML = puzzle.chartImage
+        ? `<div class="puzzle-chart"><img src="${puzzle.chartImage}" alt="Chart"></div>`
+        : `<div class="puzzle-chart">[ Chart Image Placeholder — add URL in puzzles.js ]</div>`;
 
     container.innerHTML = `
         <div class="puzzle-label">${label}</div>
@@ -298,128 +290,6 @@ function renderPuzzle(container, puzzle, isThrill) {
         </button>
         <div id="feedbackArea_${isThrill ? 'thrill' : 'daily'}"></div>
     `;
-
-    // Render chart after DOM is ready
-    setTimeout(() => {
-        if (puzzle.chartData && puzzle.chartData.length > 0) {
-            renderChart(puzzle.chartData);
-        } else {
-            // Show placeholder if no chart data
-            const chartContainer = document.getElementById('chartContainer');
-            if (chartContainer) {
-                chartContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);font-style:italic;">[ Chart placeholder — add chartData in puzzles.js ]</div>';
-            }
-        }
-    }, 100);
-}
-
-// ===== CHART RENDERING (PRODUCTION-GRADE) =====
-function renderChart(chartData) {
-    console.log('🎨 renderChart called');
-    console.log('📊 chartData length:', chartData ? chartData.length : 0);
-    
-    // Validate library
-    if (typeof LightweightCharts === 'undefined') {
-        console.error('❌ LightweightCharts not loaded!');
-        return;
-    }
-    console.log('✅ LightweightCharts library detected');
-
-    // Get container
-    const container = document.getElementById('chartContainer');
-    if (!container) {
-        console.error('❌ Chart container not found!');
-        return;
-    }
-    console.log('✅ Container found:', container.clientWidth, 'x', container.clientHeight);
-
-    // Validate dimensions
-    if (container.clientWidth === 0) {
-        console.error('❌ Container width is 0!');
-        return;
-    }
-
-    // Destroy previous chart if exists
-    if (chartInstance) {
-        console.log('🗑️ Destroying previous chart');
-        chartInstance.remove();
-        chartInstance = null;
-    }
-
-    // Clear container
-    container.innerHTML = '';
-
-    // Create chart
-    try {
-        chartInstance = LightweightCharts.createChart(container, {
-            layout: {
-                background: { color: '#101828' },
-                textColor: '#7b92b2'
-            },
-            grid: {
-                vertLines: { color: '#1e2d47' },
-                horzLines: { color: '#1e2d47' }
-            },
-            width: container.clientWidth,
-            height: container.clientHeight || 320,
-            timeScale: {
-                borderColor: '#2a3f62',
-                timeVisible: true,
-                secondsVisible: false
-            },
-            rightPriceScale: {
-                borderColor: '#2a3f62',
-                scaleMargins: { top: 0.1, bottom: 0.1 }
-            },
-            crosshair: {
-                vertLine: { color: '#00e5ff', style: 3, width: 1 },
-                horzLine: { color: '#00e5ff', style: 3, width: 1 }
-            }
-        });
-
-        console.log('✅ Chart created');
-
-        // Add candlestick series
-        const series = chartInstance.addCandlestickSeries({
-            upColor: '#00e676',
-            downColor: '#ff4560',
-            borderVisible: false,
-            wickUpColor: '#00e676',
-            wickDownColor: '#ff4560'
-        });
-
-        console.log('✅ Series added');
-
-        // Set data
-        series.setData(chartData);
-        console.log('✅ Data set');
-
-        // Fit content
-        chartInstance.timeScale().fitContent();
-        console.log('✅ Chart rendered successfully');
-
-        // Responsive resize
-        const resizeObserver = new ResizeObserver(entries => {
-            if (chartInstance && container.clientWidth > 0) {
-                chartInstance.applyOptions({
-                    width: container.clientWidth,
-                    height: container.clientHeight || 320
-                });
-            }
-        });
-        resizeObserver.observe(container);
-
-    } catch (err) {
-        console.error('❌ Chart rendering error:', err);
-    }
-}
-
-function destroyChart() {
-    if (chartInstance) {
-        console.log('🗑️ Destroying chart instance');
-        chartInstance.remove();
-        chartInstance = null;
-    }
 }
 
 function selectOption(btn, isThrill) {
@@ -436,6 +306,7 @@ async function submitAnswer(isThrill) {
     if (!selectedOption || !currentPuzzle) return;
     if (isThrill && thrillTimer) { clearInterval(thrillTimer); thrillTimer = null; }
 
+    // Disable all options
     const gridId = `optGrid_${isThrill ? 'thrill' : 'daily'}`;
     document.querySelectorAll(`#${gridId} .option-btn`).forEach(btn => {
         btn.disabled = true;
@@ -446,8 +317,11 @@ async function submitAnswer(isThrill) {
     const submitBtn = document.getElementById(submitId);
     if (submitBtn) submitBtn.style.display = 'none';
 
+    // Rating change
     const ratingDelta = isThrill ? THRILL_RATING_CHANGES[selectedOption] : RATING_CHANGES[selectedOption];
+    const isGoodChoice = selectedOption === 'optimal' || selectedOption === 'good';
 
+    // Update local user object
     currentUser.rating         += ratingDelta;
     currentUser.puzzlesSolved  += 1;
     currentUser.performance[selectedOption]++;
@@ -458,12 +332,14 @@ async function submitAnswer(isThrill) {
     if (isThrill) {
         currentUser.lastThrillDate = todayKey();
     } else {
-        currentUser.dailyPuzzlesCompleted = Math.min((currentUser.dailyPuzzlesCompleted || 0) + 1, 5);
+        currentUser.dailyPuzzlesCompleted = Math.min((currentUser.dailyPuzzlesCompleted || 0) + 1, 3);
         currentUser.lastPlayedDate = todayKey();
     }
 
+    // Update streak
     updateStreak();
 
+    // Save to Firestore
     try {
         await db.collection(USERS_COL).doc(currentUser.username).update({
             rating:                 currentUser.rating,
@@ -486,11 +362,15 @@ async function submitAnswer(isThrill) {
         showToast("Saved locally. Sync may retry.", 'warning');
     }
 
+    // Update nav chip
     updateNavUser();
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
-    setEl('dailyRemaining', Math.max(0, 5 - currentUser.dailyPuzzlesCompleted));
+    setEl('dailyRemaining', Math.max(0, 3 - currentUser.dailyPuzzlesCompleted));
+
+    // Floating rating animation
     spawnFloatRating(ratingDelta);
 
+    // Render feedback
     const feedbackArea = document.getElementById(`feedbackArea_${isThrill ? 'thrill' : 'daily'}`);
     renderFeedback(feedbackArea, currentPuzzle, selectedOption, ratingDelta, isThrill);
 }
@@ -570,6 +450,7 @@ function startThrillRound() {
     const statusEl = document.getElementById('thrillStatus');
     const puzzleEl = document.getElementById('thrillPuzzleContainer');
 
+    // Show circular timer
     statusEl.innerHTML = `
         <div style="text-align:center; margin-bottom:24px;">
             <div class="thrill-timer-wrap">
@@ -589,7 +470,7 @@ function startThrillRound() {
 }
 
 function startThrillCountdown() {
-    const circumference = 2 * Math.PI * 44;
+    const circumference = 2 * Math.PI * 44; // 276.46
 
     thrillTimer = setInterval(() => {
         thrillRemaining--;
@@ -603,6 +484,7 @@ function startThrillCountdown() {
             circle.style.strokeDashoffset = offset;
         }
 
+        // Change color as time runs low
         if (circle) {
             if (thrillRemaining <= 10)      circle.style.stroke = 'var(--red)';
             else if (thrillRemaining <= 30) circle.style.stroke = 'var(--amber)';
@@ -615,6 +497,7 @@ function startThrillCountdown() {
         if (thrillRemaining <= 0) {
             clearInterval(thrillTimer);
             thrillTimer = null;
+            // Auto-submit as poor if no answer
             if (!selectedOption) selectedOption = 'poor';
             submitAnswer(true);
             showToast("Time's up! Auto-submitted.", 'warning');
@@ -622,7 +505,7 @@ function startThrillCountdown() {
     }, 1000);
 }
 
-// ===== LEADERBOARD =====
+// ===== LEADERBOARD (Real-time) =====
 function subscribeLeaderboard() {
     if (leaderboardUnsubscribe) leaderboardUnsubscribe();
 
@@ -681,10 +564,11 @@ function renderLeaderboard(docs) {
 async function renderProfile() {
     if (!currentUser) { showSection('login'); return; }
 
+    // Refresh user data from Firestore
     try {
         const snap = await db.collection(USERS_COL).doc(currentUser.username).get();
         if (snap.exists) currentUser = snap.data();
-    } catch (err) { }
+    } catch (err) { /* use local data */ }
 
     const u = currentUser;
     setEl('profileUsername', u.username);
@@ -693,14 +577,17 @@ async function renderProfile() {
     setEl('profilePuzzles', u.puzzlesSolved);
     setEl('profileStreak', u.streak);
 
+    // Avatar initial
     const av = document.getElementById('profileAvatar');
     if (av) av.textContent = u.username.charAt(0).toUpperCase();
 
+    // Global rank
     const rankSnap = await db.collection(USERS_COL)
         .where('rating', '>', u.rating).get().catch(() => null);
     const rank = rankSnap ? rankSnap.size + 1 : '—';
     setEl('profileRankBadge', `#${rank} Global Rank`);
 
+    // Breakdown bars
     const total = u.puzzlesSolved || 1;
     const perf  = u.performance || {};
     animateBar('barOptimal', perf.optimal || 0, total);
@@ -712,6 +599,7 @@ async function renderProfile() {
     setEl('riskyCount',   perf.risky   || 0);
     setEl('poorCount',    perf.poor    || 0);
 
+    // Recent activity
     const actFeed = document.getElementById('recentActivity');
     const activity = (u.recentActivity || []).slice().reverse().slice(0, 10);
     if (actFeed) {
@@ -742,6 +630,7 @@ function animateBar(id, count, total) {
     setTimeout(() => { el.style.width = pct + '%'; }, 100);
 }
 
+// ===== STREAK =====
 function updateStreak() {
     const today     = todayKey();
     const yesterday = yesterdayKey();
@@ -754,6 +643,7 @@ function updateStreak() {
     }
 }
 
+// ===== TOAST SYSTEM =====
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -770,6 +660,7 @@ function showToast(message, type = 'info') {
     }, 3500);
 }
 
+// ===== FLOATING RATING CHANGE =====
 function spawnFloatRating(delta) {
     const el = document.createElement('div');
     el.className = `float-rating ${delta >= 0 ? 'pos' : 'neg'}`;
@@ -781,6 +672,7 @@ function spawnFloatRating(delta) {
     setTimeout(() => el.remove(), 1300);
 }
 
+// ===== UTILITY =====
 function todayKey() {
     const d = new Date();
     return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
