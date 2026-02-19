@@ -472,14 +472,18 @@ body {
 .puzzle-title { font-family: var(--font-head); font-size: 1.75rem; font-weight: 700; margin-bottom: 28px; }
 
 .puzzle-chart {
-    width: 100%; height: 280px;
+    width: 100%;
+    height: 320px;  /* Fixed height */
     background: var(--bg-surface);
     border: 1px solid var(--border-base);
     border-radius: var(--radius-lg);
     margin-bottom: 24px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text-3); font-size: .9rem; font-style: italic;
     overflow: hidden;
+}
+
+#chartContainer {
+    width: 100%;
+    height: 100%;  /* Fill parent */
 }
 .puzzle-chart img { width: 100%; height: 100%; object-fit: contain; border-radius: var(--radius-lg); }
 
@@ -789,4 +793,25 @@ body {
     .stats-bar { display: none; } /* shown as tiles on small screens */
     .hero-btns { flex-direction: column; }
     .hero-btns .btn-primary, .hero-btns .btn-ghost { width: 100%; justify-content: center; }
+}.progress-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
 }
+
+.progress-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2a3f62;
+}
+
+.progress-dots span.done {
+    background: #00e676;
+}
+
+.progress-dots span.current {
+    background: #ff9800;
+}
+
