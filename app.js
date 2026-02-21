@@ -207,13 +207,13 @@ function updateHomeStats() {
     setEl('userAccuracy', currentUser.puzzlesSolved > 0 ? `${currentUser.accuracy}%` : '—');
     setEl('userStreak', currentUser.streak);
     setEl('userPuzzles', currentUser.puzzlesSolved);
-    const rem = Math.max(0, 3 - currentUser.dailyPuzzlesCompleted);
+    const rem = Math.max(0, 5 - currentUser.dailyPuzzlesCompleted);
     setEl('dailyRemaining', rem);
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
 }
 
 function updateProgressDots(completed) {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
         const dot = document.getElementById('dot' + i);
         if (!dot) continue;
         dot.classList.remove('done', 'current');
@@ -238,7 +238,7 @@ function loadDailyPuzzle() {
     resetDailyIfNeeded();
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
 
-    const remaining = 3 - currentUser.dailyPuzzlesCompleted;
+    const remaining = 5 - currentUser.dailyPuzzlesCompleted;
     setEl('puzzlesRemaining', `${Math.max(0, remaining)} remaining`);
 
     if (currentUser.dailyPuzzlesCompleted >= DAILY_PUZZLES.length) {
@@ -739,3 +739,4 @@ function timeAgo(ts) {
     if (s < 86400) return `${Math.floor(s/3600)}h ago`;
     return `${Math.floor(s/86400)}d ago`;
 }
+
