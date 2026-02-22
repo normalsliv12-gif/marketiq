@@ -90,6 +90,7 @@ function showSection(name) {
     if (name === 'thrill')      { loadThrillStatus(); }
     if (name === 'leaderboard') { subscribeLeaderboard(); }
     if (name === 'profile')     { renderProfile(); }
+    if (name === 'predictions') { loadPredictions(); }
     if (name !== 'leaderboard' && leaderboardUnsubscribe) {
         leaderboardUnsubscribe();
         leaderboardUnsubscribe = null;
@@ -624,6 +625,21 @@ async function renderProfile() {
     setEl('profilePuzzles', u.puzzlesSolved);
     setEl('profileStreak', u.streak);
 
+    // Calibration score display
+    const calibScore = u.calibrationScore != null ? u.calibrationScore.toFixed(3) : '—';
+    const calibForecastCount = u.calibrationForecastCount || 0;
+    setEl('profileCalibrationScore', calibScore);
+    const calibLabel = document.getElementById('profileCalibrationLabel');
+    if (calibLabel) {
+        if (calibForecastCount === 0) {
+            calibLabel.textContent = 'No forecasts yet';
+        } else {
+            const tier = getCalibrationTier(u.calibrationScore);
+            calibLabel.textContent = `${tier} · ${calibForecastCount} resolved`;
+            calibLabel.style.color = tier === 'Expert' ? 'var(--green)' : tier === 'Skilled' ? 'var(--cyan)' : tier === 'Learning' ? 'var(--amber)' : 'var(--text-3)';
+        }
+    }
+
     // Avatar initial
     const av = document.getElementById('profileAvatar');
     if (av) av.textContent = u.username.charAt(0).toUpperCase();
@@ -741,3 +757,589 @@ function timeAgo(ts) {
 }
 
 
+// ============================================================
+//  PREDICTIONS ENGINE — Probabilistic Forecasting
+//  Brier Score · Calibration · Crowd Consensus
+// ============================================================
+
+// ===== PREDICTION EVENTS DATA =====
+// In production these would come from Firestore `predictionEvents` collection.
+// Seeded here as static data; the schema mirrors the Firestore document shape.
+const PREDICTION_EVENTS = [
+    {
+        id: "pe_nifty_5pct_mar25",
+        category: "Index",
+        title: "Nifty 50 falls ≥5% before end of March 2025",
+        context: "Nifty trading near all-time highs with RSI divergence. FII outflows accelerating. Fed policy uncertainty remains.",
+        deadline: "2025-03-31T23:59:00Z",
+        resolved: false,
+        outcome: null,
+        resolvedAt: null,
+        crowdForecasts: []
+    },
+    {
+        id: "pe_btc_80k_q2",
+        category: "Crypto",
+        title: "Bitcoin exceeds $80,000 at any point in Q2 2025",
+        context: "Post-halving supply crunch combined with ETF inflows. Macro conditions uncertain. Historical Q2 patterns mixed.",
+        deadline: "2025-06-30T23:59:00Z",
+        resolved: true,
+        outcome: true,
+        resolvedAt: "2025-04-12T10:00:00Z",
+        crowdForecasts: [72, 65, 80, 55, 78, 82, 60, 71, 68, 74, 77, 63]
+    },
+    {
+        id: "pe_fed_cut_jun25",
+        category: "Macro",
+        title: "Federal Reserve cuts rates at June 2025 FOMC meeting",
+        context: "CPI trending down but still above 2% target. Labor market resilient. Market pricing ~40% cut probability.",
+        deadline: "2025-06-18T20:00:00Z",
+        resolved: false,
+        outcome: null,
+        crowdForecasts: [38, 42, 35, 50, 30, 45, 40, 33, 47, 38, 55, 29, 43]
+    },
+    {
+        id: "pe_gold_3000_h1",
+        category: "Commodity",
+        title: "Gold (XAUUSD) trades above $3,000/oz in H1 2025",
+        context: "Central bank buying remains elevated. Geopolitical tensions supporting safe-haven demand. USD weakening trend.",
+        deadline: "2025-06-30T23:59:00Z",
+        resolved: true,
+        outcome: true,
+        resolvedAt: "2025-03-14T00:00:00Z",
+        crowdForecasts: [65, 70, 58, 72, 80, 55, 75, 68, 60, 77, 63, 71]
+    },
+    {
+        id: "pe_sensex_85k_may25",
+        category: "Index",
+        title: "Sensex closes above 85,000 before May 31, 2025",
+        context: "Domestic flows via SIPs remain strong. Election uncertainty resolved. Earnings season broadly positive vs estimates.",
+        deadline: "2025-05-31T23:59:00Z",
+        resolved: false,
+        outcome: null,
+        crowdForecasts: [55, 48, 62, 70, 45, 58, 52, 66, 60, 50]
+    },
+    {
+        id: "pe_crude_60_q2",
+        category: "Commodity",
+        title: "WTI Crude falls below $60/barrel in Q2 2025",
+        context: "OPEC+ supply discipline fraying. US shale production at record highs. Demand outlook weakening on China slowdown.",
+        deadline: "2025-06-30T23:59:00Z",
+        resolved: false,
+        outcome: null,
+        crowdForecasts: [30, 25, 38, 22, 35, 28, 41, 20, 32, 27]
+    }
+];
+
+// ===== BRIER SCORE ENGINE =====
+
+/**
+ * Calculates a single Brier Score contribution.
+ * Formula: BS = (forecast_probability - outcome)^2
+ * Range: 0 (perfect) → 1 (worst). Lower = better.
+ * @param {number} forecastPct  - User's probability (1–99)
+ * @param {boolean} outcome     - True event resolution
+ * @returns {number} brierScore - 0 to 1
+ */
+function calculateBrierScore(forecastPct, outcome) {
+    const p = forecastPct / 100;
+    const o = outcome ? 1 : 0;
+    return Math.pow(p - o, 2);
+}
+
+/**
+ * Calibration Score = 1 - mean Brier Score across all resolved forecasts.
+ * Higher is better. Perfect calibration = 1.0. Naive (50% always) ≈ 0.75.
+ * @param {Array<{forecastPct: number, outcome: boolean}>} forecasts
+ * @returns {number|null} calibrationScore - 0 to 1
+ */
+function calculateCalibrationScore(forecasts) {
+    if (!forecasts || forecasts.length === 0) return null;
+    const meanBS = forecasts.reduce((sum, f) =>
+        sum + calculateBrierScore(f.forecastPct, f.outcome), 0
+    ) / forecasts.length;
+    return parseFloat((1 - meanBS).toFixed(4));
+}
+
+/**
+ * Weighted Crowd Consensus.
+ * Averages forecasts, optionally weighted by forecaster calibration score.
+ * @param {Array<number>} forecasts    - Probabilities (1–99)
+ * @param {Array<number>|null} weights - Calibration scores (0–1), optional
+ * @returns {number|null} consensusPct
+ */
+function calculateConsensus(forecasts, weights = null) {
+    if (!forecasts || forecasts.length === 0) return null;
+    if (!weights || weights.length !== forecasts.length) {
+        return Math.round(forecasts.reduce((a, b) => a + b, 0) / forecasts.length);
+    }
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const weightedSum = forecasts.reduce((sum, f, i) => sum + f * weights[i], 0);
+    return Math.round(weightedSum / totalWeight);
+}
+
+/**
+ * Converts a Calibration Score to a human-readable tier label.
+ */
+function getCalibrationTier(score) {
+    if (score == null) return 'Unranked';
+    if (score >= 0.92) return 'Expert';
+    if (score >= 0.82) return 'Skilled';
+    if (score >= 0.72) return 'Learning';
+    return 'Developing';
+}
+
+/**
+ * Brier delta vs naive forecaster (0.25 reference).
+ * Positive delta = better than naive.
+ */
+function brierDeltaVsNaive(forecastPct, outcome) {
+    const bs    = calculateBrierScore(forecastPct, outcome);
+    const naive = 0.25; // (0.5 - 0)^2 = naive benchmark
+    return parseFloat((naive - bs).toFixed(4));
+}
+
+// ===== PREDICTIONS STATE =====
+let userForecasts     = {};  // { eventId: { forecastPct, submittedAt, brierScore } }
+let resolvedForecasts = [];  // resolved { forecastPct, outcome } for calibration calc
+
+// ===== LOAD PREDICTIONS =====
+async function loadPredictions() {
+    if (!currentUser) return;
+
+    const grid = document.getElementById('predictionsGrid');
+    if (!grid) return;
+
+    grid.innerHTML = `
+        <div class="pred-loading">
+            <div class="pred-loading-spinner"></div>
+            Loading forecasts...
+        </div>`;
+
+    try {
+        await loadUserForecasts();
+
+        const calibScore = calculateCalibrationScore(resolvedForecasts);
+        if (currentUser) {
+            currentUser.calibrationScore         = calibScore;
+            currentUser.calibrationForecastCount = resolvedForecasts.length;
+        }
+
+        updateCalibrationDisplay(calibScore);
+        renderPredictions(grid);
+
+    } catch (err) {
+        console.error("Predictions load error:", err);
+        grid.innerHTML = `
+            <div class="pred-loading" style="color:var(--red)">
+                ⚠️ Could not load predictions. Check your Firebase setup.
+            </div>`;
+    }
+}
+
+async function loadUserForecasts() {
+    if (!currentUser) return;
+    userForecasts     = {};
+    resolvedForecasts = [];
+
+    try {
+        const snap = await db
+            .collection('users')
+            .doc(currentUser.username)
+            .collection('predictions')
+            .get();
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            userForecasts[doc.id] = d;
+
+            const event = PREDICTION_EVENTS.find(e => e.id === doc.id);
+            if (event && event.resolved && event.outcome !== null) {
+                resolvedForecasts.push({ forecastPct: d.forecastPct, outcome: event.outcome });
+            }
+        });
+    } catch (err) {
+        console.warn("Could not fetch user forecasts:", err);
+    }
+}
+
+// ===== RENDER PREDICTIONS =====
+function renderPredictions(grid) {
+    if (PREDICTION_EVENTS.length === 0) {
+        grid.innerHTML = `<div class="pred-loading">No prediction events available yet. Check back soon.</div>`;
+        return;
+    }
+    grid.innerHTML = PREDICTION_EVENTS.map(event => renderPredCard(event)).join('');
+    animatePredBars();
+}
+
+function renderPredCard(event) {
+    const userF           = userForecasts[event.id] || null;
+    const consensus       = calculateConsensus(event.crowdForecasts);
+    const forecasterCount = event.crowdForecasts.length + (userF && !event.crowdForecasts.includes(userF.forecastPct) ? 1 : 0);
+    const deadlineDate    = new Date(event.deadline);
+    const deadlineStr     = deadlineDate.toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
+    const isResolved      = event.resolved;
+    const hasUserForecast = userF != null;
+
+    let cardClass = 'pred-card';
+    if (isResolved) {
+        cardClass += event.outcome ? ' resolved resolved-true' : ' resolved resolved-false';
+    } else if (hasUserForecast) {
+        cardClass += ' submitted';
+    }
+
+    const sliderVal    = hasUserForecast ? userF.forecastPct : 50;
+    const consensusHtml = consensus !== null ? `
+        <div class="pred-consensus">
+            <div class="pred-consensus-label">
+                <span class="pred-consensus-title">Crowd Consensus</span>
+                <span class="pred-consensus-val mono">${consensus}%</span>
+            </div>
+            <div class="pred-consensus-track">
+                <div class="pred-consensus-fill" style="width:${consensus}%"></div>
+            </div>
+            <div class="pred-forecasters">${forecasterCount} forecaster${forecasterCount !== 1 ? 's' : ''}</div>
+        </div>` : '';
+
+    let footerHtml = '';
+    if (isResolved) {
+        footerHtml = renderResolvedFooter(event, userF);
+    } else if (hasUserForecast) {
+        footerHtml = renderSubmittedFooter(event, userF);
+    } else {
+        footerHtml = `
+            <button class="pred-submit-btn"
+                onclick="submitForecast('${event.id}', document.getElementById('slider-${event.id}').value)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Submit Forecast
+            </button>`;
+    }
+
+    return `
+    <div class="${cardClass}" id="predcard-${event.id}">
+        <div class="pred-card-head">
+            <div class="pred-card-meta">
+                <span class="pred-category">${event.category}</span>
+                <span class="pred-deadline">
+                    ${isResolved ? '' : '<span class="pred-deadline-dot"></span>'}
+                    ${isResolved
+                        ? '✓ Resolved ' + new Date(event.resolvedAt).toLocaleDateString('en-US', { day:'numeric', month:'short' })
+                        : 'Closes ' + deadlineStr}
+                </span>
+            </div>
+            <h3>${event.title}</h3>
+            <p class="pred-context">${event.context}</p>
+        </div>
+        <div class="pred-card-body">
+            <div class="pred-slider-wrap">
+                <div class="pred-slider-label">
+                    <span class="pred-slider-question">Probability this occurs</span>
+                    <span class="pred-prob-display" id="prob-${event.id}">${sliderVal}%</span>
+                </div>
+                <div class="pred-range-track">
+                    <div class="pred-range-fill" id="fill-${event.id}" style="width:${sliderVal}%"></div>
+                    <input type="range" class="pred-range-input"
+                        id="slider-${event.id}"
+                        min="1" max="99" value="${sliderVal}"
+                        ${isResolved || hasUserForecast ? 'disabled' : ''}
+                        oninput="onSliderMove('${event.id}', this.value)"
+                    />
+                </div>
+                <div class="pred-range-ticks">
+                    <span>1%</span><span>25%</span><span>50%</span><span>75%</span><span>99%</span>
+                </div>
+            </div>
+            ${consensusHtml}
+        </div>
+        <div class="pred-card-foot">
+            ${footerHtml}
+        </div>
+    </div>`;
+}
+
+function renderSubmittedFooter(event, userF) {
+    const submittedDate = userF.submittedAt
+        ? new Date(userF.submittedAt).toLocaleDateString('en-US', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+        : 'Recently';
+    return `
+        <div class="pred-submitted-badge">
+            <div>
+                <div style="font-size:.72rem;color:var(--text-3);margin-bottom:2px;">Your Forecast</div>
+                <span class="pred-submitted-prob">${userF.forecastPct}%</span>
+            </div>
+            <div style="text-align:right">
+                <div class="pred-submitted-time">Submitted ${submittedDate}</div>
+                <button class="pred-edit-btn" onclick="editForecast('${event.id}')">Edit</button>
+            </div>
+        </div>`;
+}
+
+function renderResolvedFooter(event, userF) {
+    const outcomeLabel = event.outcome ? '✓ Happened' : '✗ Did Not Happen';
+    const outcomeClass = event.outcome ? 'true' : 'false';
+    const panelClass   = event.outcome ? 'result-true' : 'result-false';
+
+    if (!userF) {
+        return `
+            <div class="pred-result-panel ${panelClass}">
+                <div class="pred-result-row">
+                    <span class="pred-result-outcome ${outcomeClass}">${outcomeLabel}</span>
+                </div>
+            </div>
+            <div class="pred-no-forecast">You had no forecast for this event</div>`;
+    }
+
+    const bs         = calculateBrierScore(userF.forecastPct, event.outcome);
+    const delta      = brierDeltaVsNaive(userF.forecastPct, event.outcome);
+    const deltaSign  = delta >= 0 ? '+' : '';
+    const deltaClass = delta >= 0 ? 'gain' : 'loss';
+    const correct    = event.outcome ? 100 : 0;
+    const errorPct   = Math.abs(userF.forecastPct - correct);
+    const accuracyPct = 100 - errorPct;
+    const barClass   = accuracyPct >= 70 ? 'good-call' : 'poor-call';
+
+    return `
+        <div class="pred-result-panel ${panelClass}">
+            <div class="pred-result-row">
+                <span class="pred-result-outcome ${outcomeClass}">${outcomeLabel}</span>
+                <span class="pred-brier-delta ${deltaClass}">
+                    ${deltaSign}${delta.toFixed(3)} vs naive
+                </span>
+            </div>
+            <div class="pred-result-details">
+                Your forecast: <strong>${userF.forecastPct}%</strong> ·
+                Brier Score: <strong>${bs.toFixed(3)}</strong>
+            </div>
+        </div>
+        <div class="pred-accuracy-bar">
+            <div class="pred-accuracy-label">
+                <span>Forecast Accuracy</span>
+                <span>${accuracyPct.toFixed(0)}%</span>
+            </div>
+            <div class="pred-accuracy-track">
+                <div class="pred-accuracy-fill ${barClass}" style="width:0%"
+                    data-target="${accuracyPct}"></div>
+            </div>
+        </div>`;
+}
+
+// ===== SLIDER INTERACTIVITY =====
+function onSliderMove(eventId, value) {
+    const val    = parseInt(value);
+    const probEl = document.getElementById(`prob-${eventId}`);
+    const fillEl = document.getElementById(`fill-${eventId}`);
+
+    if (probEl) {
+        probEl.textContent = val + '%';
+        probEl.className   = 'pred-prob-display';
+        if (val >= 85)      probEl.classList.add('very-high');
+        else if (val >= 70) probEl.classList.add('high');
+    }
+    if (fillEl) fillEl.style.width = val + '%';
+}
+
+// ===== SUBMIT FORECAST =====
+async function submitForecast(eventId, rawValue) {
+    if (!currentUser) {
+        showToast("Sign in first to submit forecasts.", 'info');
+        return;
+    }
+
+    const forecastPct = parseInt(rawValue);
+    if (isNaN(forecastPct) || forecastPct < 1 || forecastPct > 99) {
+        showToast("Probability must be between 1% and 99%.", 'error');
+        return;
+    }
+
+    const event = PREDICTION_EVENTS.find(e => e.id === eventId);
+    if (!event) return;
+    if (event.resolved) { showToast("This event is already resolved.", 'warning'); return; }
+    if (userForecasts[eventId]) {
+        showToast("You have already submitted. Use Edit to update.", 'warning');
+        return;
+    }
+
+    const card = document.getElementById(`predcard-${eventId}`);
+    const btn  = card?.querySelector('.pred-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+
+    const forecast = {
+        eventId,
+        forecastPct,
+        submittedAt:              Date.now(),
+        eventTitle:               event.title,
+        eventCategory:            event.category,
+        eventDeadline:            event.deadline,
+        brierScore:               null,
+        calibrationContribution:  null
+    };
+
+    try {
+        await db
+            .collection('users')
+            .doc(currentUser.username)
+            .collection('predictions')
+            .doc(eventId)
+            .set(forecast);
+
+        userForecasts[eventId] = forecast;
+        event.crowdForecasts.push(forecastPct);
+
+        showToast(`Forecast of ${forecastPct}% submitted! ✓`, 'success');
+        spawnFloatRating(forecastPct);
+
+        if (card) card.outerHTML = renderPredCard(event);
+        animatePredBars();
+
+    } catch (err) {
+        console.error("Forecast submit error:", err);
+        showToast("Could not save forecast. Check connection.", 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit Forecast'; }
+    }
+}
+
+// ===== EDIT FORECAST =====
+async function editForecast(eventId) {
+    const event = PREDICTION_EVENTS.find(e => e.id === eventId);
+    if (!event || event.resolved) return;
+
+    delete userForecasts[eventId];
+
+    try {
+        await db
+            .collection('users')
+            .doc(currentUser.username)
+            .collection('predictions')
+            .doc(eventId)
+            .delete();
+    } catch (err) {
+        console.warn("Could not delete old forecast:", err);
+    }
+
+    const card = document.getElementById(`predcard-${eventId}`);
+    if (card) card.outerHTML = renderPredCard(event);
+    showToast("Forecast cleared. Set a new probability.", 'info');
+}
+
+// ===== CALIBRATION DISPLAY =====
+function updateCalibrationDisplay(score) {
+    const headerChipVal = document.getElementById('calibrationScoreHeader');
+    if (headerChipVal) {
+        headerChipVal.textContent = score != null ? score.toFixed(3) : '—';
+    }
+    const navChip = document.getElementById('navCalibrationScore');
+    if (navChip) navChip.textContent = score != null ? score.toFixed(3) : '—';
+}
+
+// ===== ANIMATE ACCURACY BARS =====
+function animatePredBars() {
+    setTimeout(() => {
+        document.querySelectorAll('.pred-accuracy-fill[data-target]').forEach(el => {
+            el.style.width = parseFloat(el.dataset.target) + '%';
+        });
+    }, 200);
+}
+
+// ===== RESOLVE EVENT (Admin / Cloud Function Utility) =====
+/**
+ * Resolves an event and batch-updates all forecasters' Brier scores.
+ * In production this runs as a Firestore-triggered Cloud Function.
+ * @param {string} eventId
+ * @param {boolean} outcome
+ */
+async function resolveEventAndScore(eventId, outcome) {
+    const event = PREDICTION_EVENTS.find(e => e.id === eventId);
+    if (!event) throw new Error(`Event ${eventId} not found`);
+
+    await db.collection('predictionEvents').doc(eventId).update({
+        resolved:   true,
+        outcome,
+        resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    const allUsers = await db.collection('users').get();
+    const batch    = db.batch();
+
+    for (const userDoc of allUsers.docs) {
+        const forecastRef  = db.collection('users').doc(userDoc.id).collection('predictions').doc(eventId);
+        const forecastSnap = await forecastRef.get();
+        if (!forecastSnap.exists) continue;
+
+        const forecast   = forecastSnap.data();
+        const brierScore = calculateBrierScore(forecast.forecastPct, outcome);
+        const delta      = brierDeltaVsNaive(forecast.forecastPct, outcome);
+
+        batch.update(forecastRef, {
+            brierScore,
+            calibrationContribution: delta,
+            outcome,
+            resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        const allForecasts   = await db.collection('users').doc(userDoc.id).collection('predictions')
+            .where('outcome', '!=', null).get();
+        const resolvedData   = allForecasts.docs.map(d => ({ forecastPct: d.data().forecastPct, outcome: d.data().outcome }));
+        resolvedData.push({ forecastPct: forecast.forecastPct, outcome });
+
+        const newCalibration = calculateCalibrationScore(resolvedData);
+        const tier           = getCalibrationTier(newCalibration);
+
+        batch.update(db.collection('users').doc(userDoc.id), {
+            calibrationScore:         newCalibration,
+            calibrationForecastCount: resolvedData.length,
+            calibrationTier:          tier
+        });
+    }
+
+    await batch.commit();
+    console.log(`✅ Event ${eventId} resolved. All Brier scores updated.`);
+}
+
+// ===== SKILL-WEIGHTED TIME SERIES EXPORT =====
+/**
+ * Returns forecasters for an event ranked by calibration score,
+ * with a skill-weighted consensus probability — for institutional export.
+ * @param {string} eventId
+ * @returns {Promise<Object>}
+ */
+async function getSkillWeightedTimeSeries(eventId) {
+    const forecasts = [];
+    const allUsers  = await db.collection('users').get();
+
+    for (const userDoc of allUsers.docs) {
+        const u            = userDoc.data();
+        const forecastSnap = await db.collection('users').doc(userDoc.id)
+            .collection('predictions').doc(eventId).get();
+        if (!forecastSnap.exists) continue;
+
+        const f   = forecastSnap.data();
+        const cal = u.calibrationScore ?? 0.5;
+
+        forecasts.push({
+            username:         userDoc.id,
+            forecastPct:      f.forecastPct,
+            calibrationScore: cal,
+            calibrationTier:  getCalibrationTier(cal),
+            weight:           cal,
+            submittedAt:      f.submittedAt,
+            brierScore:       f.brierScore ?? null
+        });
+    }
+
+    forecasts.sort((a, b) => b.calibrationScore - a.calibrationScore);
+
+    const totalWeight  = forecasts.reduce((s, f) => s + f.weight, 0);
+    const weightedProb = totalWeight > 0
+        ? Math.round(forecasts.reduce((s, f) => s + f.forecastPct * f.weight, 0) / totalWeight)
+        : calculateConsensus(forecasts.map(f => f.forecastPct));
+
+    return {
+        eventId,
+        skillWeightedConsensus: weightedProb,
+        forecasterCount:        forecasts.length,
+        forecasters:            forecasts
+    };
+}
