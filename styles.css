@@ -1076,3 +1076,146 @@ body {
     .pred-stat           { min-width: 45%; }
     .profile-stat-row    { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================
+   PASSWORD INPUT & TOGGLE
+============================================ */
+.password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.password-input-wrap input {
+    width: 100%;
+    padding-right: 44px !important;
+}
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition);
+    border-radius: var(--radius-sm);
+}
+.password-toggle:hover { color: var(--text-2); }
+.password-toggle:focus-visible {
+    outline: 2px solid var(--cyan);
+    color: var(--cyan);
+}
+
+/* Password Strength Bar */
+.password-strength-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: -4px;
+}
+.password-strength-track {
+    flex: 1;
+    height: 3px;
+    background: var(--border-base);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.password-strength-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+.password-strength-label {
+    font-size: .75rem;
+    font-family: var(--font-mono);
+    min-width: 48px;
+    text-align: right;
+    transition: color 0.3s;
+}
+
+/* ============================================
+   SET PASSWORD MODAL
+============================================ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8000;
+    background: rgba(6, 8, 15, 0.85);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.modal-overlay.modal-visible { opacity: 1; }
+
+.modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-xl);
+    padding: 32px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.6), var(--shadow-glow-cyan);
+    transform: translateY(16px);
+    transition: transform 0.25s ease;
+}
+.modal-overlay.modal-visible .modal-box { transform: translateY(0); }
+
+.modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 28px;
+}
+.modal-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    background: var(--cyan-dim);
+    border: 1px solid rgba(0,229,255,.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cyan);
+    flex-shrink: 0;
+}
+.modal-title {
+    font-family: var(--font-head);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-1);
+    margin-bottom: 4px;
+}
+.modal-subtitle {
+    font-size: .875rem;
+    color: var(--text-2);
+    line-height: 1.5;
+}
+.modal-body { display: flex; flex-direction: column; gap: 18px; margin-bottom: 28px; }
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.modal-actions .btn-ghost {
+    padding: 10px 20px;
+    font-size: .9rem;
+}
+.modal-actions .btn-primary {
+    padding: 10px 24px;
+    font-size: .9rem;
+}
+
+@media (max-width: 480px) {
+    .modal-box { padding: 24px 20px; }
+    .modal-actions { flex-direction: column-reverse; }
+    .modal-actions button { width: 100%; justify-content: center; }
+}
