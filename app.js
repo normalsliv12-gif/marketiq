@@ -379,7 +379,7 @@ async function submitAnswer(isThrill) {
     if (isThrill) {
         currentUser.lastThrillDate = todayKey();
     } else {
-        currentUser.dailyPuzzlesCompleted = Math.min((currentUser.dailyPuzzlesCompleted || 0) + 1, 3);
+        currentUser.dailyPuzzlesCompleted = Math.min((currentUser.dailyPuzzlesCompleted || 0) + 1, DAILY_PUZZLES.length);
         currentUser.lastPlayedDate = todayKey();
     }
 
@@ -739,4 +739,5 @@ function timeAgo(ts) {
     if (s < 86400) return `${Math.floor(s/3600)}h ago`;
     return `${Math.floor(s/86400)}d ago`;
 }
+
 
