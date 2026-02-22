@@ -37,7 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initAuthListener() {
+    // ── Hard fallback: if auth doesn't respond in 8s, show login anyway ──
+    const authTimeout = setTimeout(() => {
+        console.warn("Auth listener timed out — showing login.");
+        hideLoading("Connection slow — please check your Firebase config.");
+        showSection('login');
+    }, 8000);
+
     auth.onAuthStateChanged(async (firebaseUser) => {
+        clearTimeout(authTimeout); // cancel fallback — auth responded
+
         if (firebaseUser) {
             // User is signed in — fetch their Firestore profile by UID
             try {
@@ -50,8 +59,7 @@ function initAuthListener() {
                     updateMobileNav('home');
                     resetDailyIfNeeded();
                 } else {
-                    // Auth account exists but no Firestore doc — shouldn't happen
-                    // but handle gracefully by signing out
+                    // Auth account exists but no Firestore doc — sign out gracefully
                     console.warn("Auth user found but no Firestore doc. Signing out.");
                     await auth.signOut();
                     hideLoading();
@@ -59,7 +67,7 @@ function initAuthListener() {
                 }
             } catch (err) {
                 console.error("Error loading user profile:", err);
-                hideLoading("Connection error — check your Firebase setup");
+                hideLoading("Connection error — check your Firebase setup.");
                 showSection('login');
             }
         } else {
@@ -79,24 +87,37 @@ function animateLoadingBar() {
     const fill = document.getElementById('loadingBarFill');
     const text = document.getElementById('loadingText');
     if (!fill) return;
-    let msgs = ["Connecting to server...", "Loading leaderboard...", "Almost ready..."];
+
+    const msgs = ["Connecting to server...", "Loading leaderboard...", "Almost ready..."];
+    // Animate bar width: 0% → 33% → 66% → 90% in steps
+    const widths = ['0%', '33%', '66%', '90%'];
+
+    fill.style.transition = 'width 0.5s ease';
+    fill.style.width = widths[0];
+
     let i = 0;
-    let interval = setInterval(() => {
+    const interval = setInterval(() => {
         i++;
         if (i < msgs.length && text) text.textContent = msgs[i];
-        if (i >= msgs.length) clearInterval(interval);
-    }, 500);
+        if (i < widths.length)      fill.style.width  = widths[i];
+        if (i >= msgs.length)       clearInterval(interval);
+    }, 700);
 }
 
 function hideLoading(errorMsg) {
     const screen = document.getElementById('loadingScreen');
+    const fill   = document.getElementById('loadingBarFill');
+    const text   = document.getElementById('loadingText');
     if (!screen) return;
+
+    // Snap bar to 100% before hiding
+    if (fill) { fill.style.transition = 'width 0.3s ease'; fill.style.width = '100%'; }
+
     if (errorMsg) {
-        const text = document.getElementById('loadingText');
         if (text) text.textContent = errorMsg;
-        setTimeout(() => screen.classList.add('hidden'), 1500);
+        setTimeout(() => screen.classList.add('hidden'), 1800);
     } else {
-        setTimeout(() => screen.classList.add('hidden'), 300);
+        setTimeout(() => screen.classList.add('hidden'), 400);
     }
 }
 
