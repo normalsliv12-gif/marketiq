@@ -307,9 +307,13 @@ function openSetPasswordModal(forced = false) {
     document.getElementById('newPasswordInput').focus();
 }
 
-// Backdrop click is disabled (onclick removed from overlay in HTML)
-// Kept as no-op for safety
-function closeSetPasswordModal(event) { /* no-op: modal is always mandatory */ }
+// Backdrop click — only dismissable when not in forced mode
+function closeSetPasswordModal(event) {
+    if (_modalForced) return; // cannot dismiss mandatory modal
+    if (event && event.target !== document.getElementById('setPasswordModal')) return;
+    _pendingModalUser = null;
+    _closeModal();
+}
 
 function _closeModal() {
     _modalForced = false;
@@ -358,6 +362,7 @@ async function confirmSetPassword() {
 
     if (newPw.length < 4) { showToast("Password must be at least 4 characters.", 'error'); return; }
     if (newPw !== confPw) { showToast("Passwords don't match.", 'error'); return; }
+    // Strength is shown as guidance only — any password ≥ 4 chars is accepted at the user's discretion.
 
     const btn = document.getElementById('setPasswordBtn');
     btn.disabled = true;
@@ -396,6 +401,27 @@ function logout() {
     document.getElementById('mobileNav').style.display = 'none';
     showSection('login');
     showToast("Signed out. See you tomorrow!", 'info');
+}
+
+// ===== CHANGE PASSWORD (from Profile) =====
+function changePassword() {
+    if (!currentUser) return;
+    const ref = db.collection(USERS_COL).doc(currentUser.username);
+
+    _pendingModalUser = { userData: currentUser, ref, username: currentUser.username, isNew: false, isLegacy: false };
+
+    const titleEl    = document.getElementById('setPasswordTitle');
+    const subtitleEl = document.getElementById('setPasswordSubtitle');
+    if (titleEl)    titleEl.textContent    = "Change Password";
+    if (subtitleEl) subtitleEl.textContent = "Enter a new password for your account. You can do this any time.";
+
+    document.getElementById('newPasswordInput').value     = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    const strengthWrap = document.getElementById('passwordStrengthWrap');
+    if (strengthWrap) strengthWrap.style.display = 'none';
+
+    document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
+    openSetPasswordModal(false /* not forced — user can navigate away */);
 }
 
 // ===== HOME STATS =====
