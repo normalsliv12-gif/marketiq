@@ -9,51 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        /* ── Auth-form additions ── */
-        .auth-mode-toggle {
-            margin-top: 18px;
-            text-align: center;
-            font-size: 0.85rem;
-            color: var(--text-3, #7b92b2);
-        }
-        .auth-mode-toggle a {
-            color: var(--cyan, #00e5ff);
-            cursor: pointer;
-            text-decoration: underline;
-            background: none;
-            border: none;
-            font: inherit;
-        }
-        .auth-mode-toggle a:hover { opacity: 0.8; }
-
-        #authModeTitle   { transition: opacity 0.2s; }
-        #authModeHint    { font-size: 0.8rem; color: var(--text-3, #7b92b2); margin-top: 4px; min-height: 1.2em; }
-
-        /* Password field visibility toggle */
-        .password-wrap   { position: relative; }
-        .password-wrap input { padding-right: 44px; }
-        .pw-toggle {
-            position: absolute; right: 12px; top: 50%;
-            transform: translateY(-50%);
-            background: none; border: none; cursor: pointer;
-            color: var(--text-3, #7b92b2); padding: 4px; line-height: 1;
-            font-size: 1rem;
-        }
-        .pw-toggle:hover { color: var(--cyan, #00e5ff); }
-
-        /* Strength indicator (sign-up only) */
-        #pwStrengthBar {
-            height: 3px; border-radius: 2px; margin-top: 6px;
-            background: var(--border, #1e2d47);
-            transition: background 0.3s;
-            display: none;
-        }
-        #pwStrengthBar.show { display: block; }
-        #pwStrengthBar .bar-fill { height: 100%; border-radius: 2px; width: 0; transition: width 0.3s, background 0.3s; }
-        #pwStrengthText { font-size: 0.75rem; color: var(--text-3, #7b92b2); margin-top: 3px; min-height: 1em; }
-    </style>
 </head>
 <body>
 
@@ -128,49 +83,27 @@
                         <h1>MarketIQ</h1>
                         <p>Competitive rating for market intelligence</p>
                     </div>
-
-                    <!-- Single form handles both Sign In and Sign Up -->
-                    <form id="loginForm" onsubmit="handleAuth(event)" novalidate>
-
-                        <!-- Mode title + hint -->
-                        <p id="authModeTitle" style="font-weight:600; margin-bottom:4px;" class="form-mode-title">Sign In</p>
-                        <p id="authModeHint"></p>
-
-                        <!-- Username -->
+                    <form id="loginForm" onsubmit="handleLogin(event)">
                         <div class="form-group">
                             <label for="usernameInput">Username</label>
-                            <input type="text" id="usernameInput"
-                                   placeholder="Your username"
-                                   maxlength="20" minlength="3"
-                                   required autocomplete="username" spellcheck="false">
+                            <input type="text" id="usernameInput" placeholder="Enter or create a username" maxlength="20" minlength="3" required autocomplete="off" spellcheck="false">
+                            <span class="form-hint">Same username = same account, any device</span>
                         </div>
-
-                        <!-- Password -->
-                        <div class="form-group">
+                        <div class="form-group" id="passwordGroup">
                             <label for="passwordInput">Password</label>
-                            <div class="password-wrap">
-                                <input type="password" id="passwordInput"
-                                       placeholder="Your password"
-                                       minlength="6" required autocomplete="current-password">
-                                <button type="button" class="pw-toggle" aria-label="Toggle password visibility"
-                                        onclick="togglePasswordVisibility()">👁</button>
+                            <div class="password-input-wrap">
+                                <input type="password" id="passwordInput" placeholder="Enter your password" maxlength="128" autocomplete="current-password">
+                                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="Toggle password visibility">
+                                    <svg id="eyeIconShow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    <svg id="eyeIconHide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                </button>
                             </div>
-                            <!-- Strength bar shown only in sign-up mode -->
-                            <div id="pwStrengthBar"><div class="bar-fill" id="pwStrengthFill"></div></div>
-                            <span id="pwStrengthText"></span>
+                            <span class="form-hint" id="passwordHint">Existing users: leave blank to set a password for your account</span>
                         </div>
-
                         <button type="submit" class="btn-primary btn-full" id="loginBtn">
-                            Sign In
+                            Start Competing
                         </button>
                     </form>
-
-                    <!-- Toggle between Sign In and Create Account -->
-                    <div class="auth-mode-toggle">
-                        <span id="authToggleLabel">Don't have an account?</span>
-                        <a id="authToggleBtn" onclick="toggleAuthMode()">Create Account</a>
-                    </div>
-
                     <div class="login-pills">
                         <span class="pill">No real money</span>
                         <span class="pill">No real stocks</span>
@@ -308,12 +241,13 @@
                 </div>
                 <div class="puzzle-progress">
                     <div class="progress-dots">
-                        <span id="dot0"></span>
-                        <span id="dot1"></span>
-                        <span id="dot2"></span>
-                        <span id="dot3"></span>
-                        <span id="dot4"></span>
-                    </div>
+                                                                    <span id="dot0"></span>
+                                                                    <span id="dot1"></span>
+                                                                    <span id="dot2"></span>
+                                                                    <span id="dot3"></span>
+                                                                    <span id="dot4"></span>
+                                                       </div>
+
                     <div class="remaining-tag" id="puzzlesRemaining">5 remaining</div>
                 </div>
             </div>
@@ -450,7 +384,6 @@
             <button class="btn-secondary btn-full logout-btn" onclick="logout()">Sign Out</button>
         </div>
     </section>
-
     <!-- ==================== PREDICTIONS ==================== -->
     <section id="predictionsSection" class="section">
         <div class="container">
@@ -506,12 +439,58 @@
         </div>
     </section>
 
-    <!-- TradingView Lightweight Charts -->
-    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<!-- ==================== SET PASSWORD MODAL ==================== -->
+<div id="setPasswordModal" class="modal-overlay" style="display:none" onclick="closeSetPasswordModal(event)">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div>
+                <h2 class="modal-title">Secure Your Account</h2>
+                <p class="modal-subtitle">You're the first to use this username — set a password to protect it.</p>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="newPasswordInput">New Password</label>
+                <div class="password-input-wrap">
+                    <input type="password" id="newPasswordInput" placeholder="Create a strong password" maxlength="128" autocomplete="new-password">
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('newPasswordInput', this)" aria-label="Toggle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="confirmPasswordInput">Confirm Password</label>
+                <div class="password-input-wrap">
+                    <input type="password" id="confirmPasswordInput" placeholder="Repeat your password" maxlength="128" autocomplete="new-password">
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="Toggle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="password-strength-wrap" id="passwordStrengthWrap" style="display:none">
+                <div class="password-strength-track">
+                    <div class="password-strength-bar" id="passwordStrengthBar"></div>
+                </div>
+                <span class="password-strength-label" id="passwordStrengthLabel"></span>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-ghost" onclick="skipSetPassword()">Skip for now</button>
+            <button class="btn-primary" id="setPasswordBtn" onclick="confirmSetPassword()">Set Password</button>
+        </div>
+    </div>
+</div>
 
-    <!-- FIREBASE SDK (compat v9) -->
+<!-- TradingView Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
+    <!-- FIREBASE SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <!-- Chart.js for Predictions -->
