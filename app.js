@@ -5,7 +5,6 @@
 
 // ===== STATE =====
 let currentUser   = null;   // { username, ...firestoreData }
-let pendingLegacyUser = null; // Temp holder for legacy users missing passwords
 let currentPuzzle = null;
 let selectedOption = null;
 let thrillTimer    = null;
@@ -31,21 +30,21 @@ async function initApp() {
             const snap = await db.collection(USERS_COL).doc(savedUsername).get();
             if (snap.exists) {
                 const userData = snap.data();
-
-                // Intercept legacy users missing a password
-                if (!userData.password) {
-                    pendingLegacyUser = userData;
-                    hideLoading();
-                    showSection('login');
-                    document.getElementById('legacyPasswordModal').classList.remove('hidden');
-                    return;
-                }
-
                 currentUser = userData;
-                hideLoading();
-                showSection('home');
-                updateNavUser();
-                updateMobileNav('home');
+
+                // Legacy account check: no passwordHash set → force password creation
+                if (!userData.passwordHash) {
+                    hideLoading();
+                    showSection('home');
+                    updateNavUser();
+                    updateMobileNav('home');
+                    handleLegacyPassword(userData, db.collection(USERS_COL).doc(savedUsername), savedUsername);
+                } else {
+                    hideLoading();
+                    showSection('home');
+                    updateNavUser();
+                    updateMobileNav('home');
+                }
             } else {
                 // User in storage but not in Firestore (cleared?)
                 localStorage.removeItem('miq_session');
@@ -147,12 +146,49 @@ function updateNavUser() {
     }
 }
 
+// ===== PASSWORD UTILITIES =====
+
+// Simple SHA-256 hash using Web Crypto API
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + 'miq_salt_v1');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    const svgs = btn.querySelectorAll('svg');
+    svgs[0].style.display = isHidden ? 'none' : '';
+    svgs[1].style.display = isHidden ? '' : 'none';
+}
+
+function getPasswordStrength(password) {
+    let score = 0;
+    if (password.length >= 8)  score++;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score <= 1) return { label: 'Weak', color: '#ff4560', width: '25%' };
+    if (score <= 2) return { label: 'Fair', color: '#ffb800', width: '50%' };
+    if (score <= 3) return { label: 'Good', color: '#3d8ef0', width: '75%' };
+    return { label: 'Strong', color: '#00e676', width: '100%' };
+}
+
+// Pending user state for password modal flow
+let _pendingModalUser = null;
+
 // ===== LOGIN =====
 async function handleLogin(event) {
     event.preventDefault();
     const username = document.getElementById('usernameInput').value.trim();
-    const password = document.getElementById('passwordInput').value.trim();
-    
+    const password = document.getElementById('passwordInput').value;
+
     if (!username) return;
     if (username.length < 3) { showToast("Username must be at least 3 characters.", 'error'); return; }
 
@@ -161,61 +197,65 @@ async function handleLogin(event) {
     btn.textContent = "Connecting...";
 
     try {
-        const ref = db.collection(USERS_COL).doc(username);
+        const ref  = db.collection(USERS_COL).doc(username);
         const snap = await ref.get();
 
         if (snap.exists) {
-            // Returning user
+            // ── RETURNING USER ──
             const userData = snap.data();
-            
-            // Check if it's a legacy user without a password
-            if (!userData.password) {
-                pendingLegacyUser = userData;
-                document.getElementById('legacyPasswordModal').classList.remove('hidden');
+
+            if (userData.passwordHash) {
+                // ── PASSWORD-PROTECTED ACCOUNT: password is mandatory ──
+                if (!password) {
+                    showToast("Please enter your password.", 'error');
+                    document.getElementById('passwordInput').focus();
+                    btn.disabled = false;
+                    btn.textContent = "Start Competing";
+                    return;
+                }
+                const inputHash = await hashPassword(password);
+                if (inputHash !== userData.passwordHash) {
+                    showToast("Incorrect password. Try again.", 'error');
+                    document.getElementById('passwordInput').value = '';
+                    document.getElementById('passwordInput').focus();
+                    btn.disabled = false;
+                    btn.textContent = "Start Competing";
+                    return;
+                }
+                // Correct password ✓
+                currentUser = userData;
+                showToast(`Welcome back, ${username}! Rating: ${currentUser.rating}`, 'success');
+                finalizeLogin(username);
+
+            } else {
+                // ── LEGACY ACCOUNT: no password set → force password creation ──
+                currentUser = userData;
+                finalizeLogin(username, false);
+                handleLegacyPassword(userData, ref, username);
+            }
+
+        } else {
+            // ── NEW USER: password is mandatory ──
+            if (!password) {
+                showToast("Please create a password to register your account.", 'error');
+                document.getElementById('passwordInput').focus();
                 btn.disabled = false;
                 btn.textContent = "Start Competing";
-                return; // Stop flow here
+                return;
             }
-
-            // Verify password
-            if (!password) {
-                showToast("Password is required to log in.", 'error');
-                btn.disabled = false; btn.textContent = "Start Competing"; return;
+            if (password.length < 4) {
+                showToast("Password must be at least 4 characters.", 'error');
+                btn.disabled = false;
+                btn.textContent = "Start Competing";
+                return;
             }
-            if (userData.password !== password) {
-                showToast("Incorrect password.", 'error');
-                btn.disabled = false; btn.textContent = "Start Competing"; return;
-            }
-
-            currentUser = userData;
-            showToast(`Welcome back, ${username}! Rating: ${currentUser.rating}`, 'success');
-        } else {
-            // New user - Password is required
-            if (!password || password.length < 4) {
-                showToast("Password must be at least 4 characters for a new account.", 'error');
-                btn.disabled = false; btn.textContent = "Start Competing"; return;
-            }
-
-            const newUser = {
-                username,
-                password, // Store password
-                rating: 1200,
-                puzzlesSolved: 0,
-                accuracy: 0,
-                streak: 0,
-                lastPlayedDate: null,
-                lastThrillDate: null,
-                dailyPuzzlesCompleted: 0,
-                performance: { optimal: 0, good: 0, risky: 0, poor: 0 },
-                recentActivity: [],
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
+            const hash = await hashPassword(password);
+            const newUser = { ...buildNewUser(username), passwordHash: hash };
             await ref.set(newUser);
             currentUser = newUser;
             showToast(`Welcome to MarketIQ, ${username}! Starting rating: 1200`, 'success');
+            finalizeLogin(username);
         }
-
-        finalizeLoginFlow();
 
     } catch (err) {
         console.error("Login error:", err);
@@ -225,67 +265,131 @@ async function handleLogin(event) {
     }
 }
 
-async function handleLegacyPassword(event) {
-    event.preventDefault();
-    const newPassword = document.getElementById('newPasswordInput').value.trim();
-    if (newPassword.length < 4) {
-        showToast("Password must be at least 4 characters.", 'error');
-        return;
-    }
-
-    const btn = document.getElementById('legacyPwdBtn');
-    btn.disabled = true;
-    btn.textContent = "Saving...";
-
-    try {
-        await db.collection(USERS_COL).doc(pendingLegacyUser.username).update({
-            password: newPassword
-        });
-
-        // Update local object
-        pendingLegacyUser.password = newPassword;
-        currentUser = pendingLegacyUser;
-        pendingLegacyUser = null; // Clear pending state
-        
-        document.getElementById('legacyPasswordModal').classList.add('hidden');
-        document.getElementById('newPasswordInput').value = '';
-        
-        showToast("Password set successfully! Welcome back.", 'success');
-        finalizeLoginFlow();
-
-    } catch (err) {
-        console.error("Error setting legacy password:", err);
-        showToast("Failed to save password.", 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = "Save & Continue";
-    }
+function buildNewUser(username) {
+    return {
+        username,
+        rating: 1200,
+        puzzlesSolved: 0,
+        accuracy: 0,
+        streak: 0,
+        lastPlayedDate: null,
+        lastThrillDate: null,
+        dailyPuzzlesCompleted: 0,
+        performance: { optimal: 0, good: 0, risky: 0, poor: 0 },
+        recentActivity: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
 }
 
-function finalizeLoginFlow() {
-    localStorage.setItem('miq_session', currentUser.username);
+function finalizeLogin(username, showModal = true) {
+    localStorage.setItem('miq_session', username);
     updateNavUser();
     updateMobileNav('home');
     resetDailyIfNeeded();
     showSection('home');
-    
-    // Clear inputs
     document.getElementById('usernameInput').value = '';
-    const pwdInput = document.getElementById('passwordInput');
-    if(pwdInput) pwdInput.value = '';
-    
-    // Reset login button state
+    document.getElementById('passwordInput').value = '';
     const btn = document.getElementById('loginBtn');
-    if (btn) {
+    btn.disabled = false;
+    btn.textContent = "Start Competing";
+}
+
+// ===== SET PASSWORD MODAL =====
+
+// Tracks whether the modal is in "forced" mode (cannot be dismissed)
+let _modalForced = false;
+
+function openSetPasswordModal(forced = false) {
+    _modalForced = forced;
+    const modal = document.getElementById('setPasswordModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('modal-visible'), 10);
+    document.getElementById('newPasswordInput').focus();
+}
+
+// Backdrop click is disabled (onclick removed from overlay in HTML)
+// Kept as no-op for safety
+function closeSetPasswordModal(event) { /* no-op: modal is always mandatory */ }
+
+function _closeModal() {
+    _modalForced = false;
+    const modal = document.getElementById('setPasswordModal');
+    modal.classList.remove('modal-visible');
+    setTimeout(() => { modal.style.display = 'none'; }, 250);
+    document.getElementById('newPasswordInput').removeEventListener('input', onNewPasswordInput);
+}
+
+// ── LEGACY PASSWORD HANDLER ──
+// Called for accounts that exist in Firestore but have no passwordHash.
+// Forces the user to create a password before they can use the app.
+function handleLegacyPassword(userData, ref, username) {
+    _pendingModalUser = { userData, ref, username, isNew: false, isLegacy: true };
+
+    const titleEl    = document.getElementById('setPasswordTitle');
+    const subtitleEl = document.getElementById('setPasswordSubtitle');
+    if (titleEl)    titleEl.textContent    = "Password Required";
+    if (subtitleEl) subtitleEl.textContent = "Your account needs a password to stay secure. Please create one to continue.";
+
+    document.getElementById('newPasswordInput').value     = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
+
+    showToast(`Welcome back, ${username}! Please set a password to continue.`, 'info');
+    openSetPasswordModal(true /* forced */);
+}
+
+function onNewPasswordInput() {
+    const val = document.getElementById('newPasswordInput').value;
+    const wrap = document.getElementById('passwordStrengthWrap');
+    const bar  = document.getElementById('passwordStrengthBar');
+    const lbl  = document.getElementById('passwordStrengthLabel');
+    if (!val) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'flex';
+    const s = getPasswordStrength(val);
+    bar.style.width = s.width;
+    bar.style.background = s.color;
+    lbl.textContent = s.label;
+    lbl.style.color = s.color;
+}
+
+async function confirmSetPassword() {
+    const newPw  = document.getElementById('newPasswordInput').value;
+    const confPw = document.getElementById('confirmPasswordInput').value;
+
+    if (newPw.length < 4) { showToast("Password must be at least 4 characters.", 'error'); return; }
+    if (newPw !== confPw) { showToast("Passwords don't match.", 'error'); return; }
+
+    const btn = document.getElementById('setPasswordBtn');
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    try {
+        const hash = await hashPassword(newPw);
+        if (_pendingModalUser) {
+            await _pendingModalUser.ref.update({ passwordHash: hash });
+            if (currentUser) currentUser.passwordHash = hash;
+        }
+        _closeModal();
+        showToast("Password set! Your account is now protected.", 'success');
+        _pendingModalUser = null;
+
+        // If this was a legacy forced-modal flow, ensure home is shown
+        if (currentUser) {
+            updateNavUser();
+            showSection('home');
+        }
+    } catch (err) {
+        console.error("Set password error:", err);
+        showToast("Failed to save password. Try again.", 'error');
+    } finally {
         btn.disabled = false;
-        btn.textContent = "Start Competing";
+        btn.textContent = "Set Password";
     }
 }
 
 function logout() {
     if (leaderboardUnsubscribe) { leaderboardUnsubscribe(); leaderboardUnsubscribe = null; }
     currentUser = null;
-    pendingLegacyUser = null;
     localStorage.removeItem('miq_session');
     updateNavUser();
     updateMobileNav('login');
