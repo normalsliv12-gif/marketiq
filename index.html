@@ -12,7 +12,6 @@
 </head>
 <body>
 
-    <!-- LOADING SCREEN -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <div class="loading-brand">MarketIQ</div>
@@ -21,10 +20,24 @@
         </div>
     </div>
 
-    <!-- TOAST CONTAINER -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- NAVBAR -->
+    <div id="legacyPasswordModal" class="loading-screen hidden" style="background: rgba(6,8,15,0.95); backdrop-filter: blur(8px); z-index: 6000;">
+        <div class="login-box" style="max-width: 400px; width: 90%; margin: 0 auto; box-shadow: var(--shadow-card);">
+            <h2 style="font-family: var(--font-head); font-size: 1.5rem; margin-bottom: 12px; color: var(--text-1);">Security Update</h2>
+            <p style="color: var(--text-2); margin-bottom: 24px; font-size: 0.95rem;">
+                Your account is missing a password. Please create one now to secure your account and continue.
+            </p>
+            <form id="legacyPasswordForm" onsubmit="handleLegacyPassword(event)">
+                <div class="form-group">
+                    <label for="newPasswordInput">New Password</label>
+                    <input type="password" id="newPasswordInput" placeholder="Create a password" required minlength="4">
+                </div>
+                <button type="submit" class="btn-primary btn-full" id="legacyPwdBtn">Save & Continue</button>
+            </form>
+        </div>
+    </div>
+
     <nav class="navbar" id="navbar">
         <div class="nav-container">
             <div class="nav-brand" onclick="showSection('home')" style="cursor:pointer">
@@ -45,7 +58,6 @@
         </div>
     </nav>
 
-    <!-- MOBILE BOTTOM NAV -->
     <nav class="mobile-nav" id="mobileNav">
         <button class="mnav-btn" onclick="navTo('home')" data-section="home">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -73,7 +85,6 @@
         </button>
     </nav>
 
-    <!-- ==================== LOGIN ==================== -->
     <section id="loginSection" class="section active">
         <div class="container">
             <div class="login-wrap">
@@ -89,16 +100,10 @@
                             <input type="text" id="usernameInput" placeholder="Enter or create a username" maxlength="20" minlength="3" required autocomplete="off" spellcheck="false">
                             <span class="form-hint">Same username = same account, any device</span>
                         </div>
-                        <div class="form-group" id="passwordGroup">
+                        <div class="form-group">
                             <label for="passwordInput">Password</label>
-                            <div class="password-input-wrap">
-                                <input type="password" id="passwordInput" placeholder="Enter your password" maxlength="128" autocomplete="current-password">
-                                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="Toggle password visibility">
-                                    <svg id="eyeIconShow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    <svg id="eyeIconHide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                                </button>
-                            </div>
-                            <span class="form-hint" id="passwordHint">Existing users: leave blank to set a password for your account</span>
+                            <input type="password" id="passwordInput" placeholder="Enter your password">
+                            <span class="form-hint">Required for all accounts</span>
                         </div>
                         <button type="submit" class="btn-primary btn-full" id="loginBtn">
                             Start Competing
@@ -122,7 +127,6 @@
         </div>
     </section>
 
-    <!-- ==================== HOME ==================== -->
     <section id="homeSection" class="section">
         <div class="hero-bg">
             <div class="hero-grid"></div>
@@ -142,7 +146,6 @@
         </div>
 
         <div class="container">
-            <!-- Stats Bar -->
             <div class="stats-bar">
                 <div class="sb-label">Your Stats</div>
                 <div class="sb-items">
@@ -173,7 +176,6 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
             <div class="quick-actions">
                 <div class="qa-card" onclick="showSection('puzzles')">
                     <div class="qa-icon cyan">
@@ -197,7 +199,6 @@
                 </div>
             </div>
 
-            <!-- How It Works -->
             <div class="section-block">
                 <h2 class="block-title">How It Works</h2>
                 <p class="block-sub">No luck involved. Every rating point is earned through decision quality.</p>
@@ -231,7 +232,6 @@
         </div>
     </section>
 
-    <!-- ==================== DAILY PUZZLES ==================== -->
     <section id="puzzlesSection" class="section">
         <div class="container">
             <div class="section-top-row">
@@ -266,7 +266,6 @@
         </div>
     </section>
 
-    <!-- ==================== THRILL ROUND ==================== -->
     <section id="thrillSection" class="section">
         <div class="container">
             <div class="section-top-row">
@@ -280,7 +279,6 @@
         </div>
     </section>
 
-    <!-- ==================== LEADERBOARD ==================== -->
     <section id="leaderboardSection" class="section">
         <div class="container">
             <div class="section-top-row">
@@ -309,7 +307,6 @@
         </div>
     </section>
 
-    <!-- ==================== PROFILE ==================== -->
     <section id="profileSection" class="section">
         <div class="container">
             <div class="profile-top">
@@ -384,11 +381,10 @@
             <button class="btn-secondary btn-full logout-btn" onclick="logout()">Sign Out</button>
         </div>
     </section>
-    <!-- ==================== PREDICTIONS ==================== -->
+
     <section id="predictionsSection" class="section">
         <div class="container">
 
-            <!-- Header -->
             <div class="section-top-row pred-header-row">
                 <div>
                     <h1>Weekly Forecasts</h1>
@@ -407,11 +403,9 @@
                 </div>
             </div>
 
-            <!-- FORECAST VIEW (pre-submission) -->
             <div id="predForecastView">
                 <div id="predQuestionsContainer" class="pred-questions-wrap">
-                    <!-- Cards injected by JS -->
-                </div>
+                    </div>
                 <div class="pred-submit-row">
                     <p class="pred-submit-hint">Move all three sliders to unlock submission</p>
                     <button class="btn-primary btn-large pred-submit-btn-main" id="predSubmitBtn"
@@ -422,7 +416,6 @@
                 </div>
             </div>
 
-            <!-- RESULTS VIEW (post-submission) -->
             <div id="predResultsView" style="display:none">
                 <div class="pred-results-header">
                     <div class="pred-submitted-badge-main">
@@ -432,71 +425,19 @@
                     <p class="pred-results-sub">Results update as more participants submit. Final scores calculated at week close.</p>
                 </div>
                 <div id="predResultsContainer" class="pred-results-wrap">
-                    <!-- Result cards injected by JS -->
-                </div>
+                    </div>
             </div>
 
         </div>
     </section>
 
-<!-- ==================== SET PASSWORD MODAL ==================== -->
-<div id="setPasswordModal" class="modal-overlay" style="display:none" onclick="closeSetPasswordModal(event)">
-    <div class="modal-box">
-        <div class="modal-header">
-            <div class="modal-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <div>
-                <h2 class="modal-title">Secure Your Account</h2>
-                <p class="modal-subtitle">You're the first to use this username — set a password to protect it.</p>
-            </div>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label for="newPasswordInput">New Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="newPasswordInput" placeholder="Create a strong password" maxlength="128" autocomplete="new-password">
-                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('newPasswordInput', this)" aria-label="Toggle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="confirmPasswordInput">Confirm Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="confirmPasswordInput" placeholder="Repeat your password" maxlength="128" autocomplete="new-password">
-                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPasswordInput', this)" aria-label="Toggle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div class="password-strength-wrap" id="passwordStrengthWrap" style="display:none">
-                <div class="password-strength-track">
-                    <div class="password-strength-bar" id="passwordStrengthBar"></div>
-                </div>
-                <span class="password-strength-label" id="passwordStrengthLabel"></span>
-            </div>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-ghost" onclick="skipSetPassword()">Skip for now</button>
-            <button class="btn-primary" id="setPasswordBtn" onclick="confirmSetPassword()">Set Password</button>
-        </div>
-    </div>
-</div>
-
-<!-- TradingView Lightweight Charts -->
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
-    <!-- FIREBASE SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <!-- Chart.js for Predictions -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-    <!-- APP SCRIPTS -->
     <script src="firebase-config.js"></script>
     <script src="puzzles.js"></script>
     <script src="app.js"></script>
