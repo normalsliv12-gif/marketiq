@@ -36,6 +36,7 @@
                 <a href="#" class="nav-link" onclick="return navTo('puzzles')">Daily Puzzles</a>
                 <a href="#" class="nav-link" onclick="return navTo('thrill')">Thrill Round</a>
                 <a href="#" class="nav-link" onclick="return navTo('leaderboard')">Leaderboard</a>
+                <a href="#" class="nav-link predictions-nav-link" onclick="return navTo('predictions')">Predictions</a>
                 <a href="#" class="nav-link" onclick="return navTo('profile')">Profile</a>
             </div>
             <div class="nav-user" id="navUser">
@@ -61,6 +62,10 @@
         <button class="mnav-btn" onclick="navTo('leaderboard')" data-section="leaderboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
             <span>Ranks</span>
+        </button>
+        <button class="mnav-btn predictions-mnav" onclick="navTo('predictions')" data-section="predictions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            <span>Predict</span>
         </button>
         <button class="mnav-btn" onclick="navTo('profile')" data-section="profile">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -323,6 +328,11 @@
                     <div class="ps-val mono" id="profileStreak">0</div>
                     <div class="ps-key">Day Streak</div>
                 </div>
+                <div class="ps-card calibration-ps-card">
+                    <div class="ps-val mono calibration-score-val" id="profileCalibrationScore">—</div>
+                    <div class="ps-key">Calibration Score</div>
+                    <div class="ps-key calibration-sub-label" id="profileCalibrationLabel"></div>
+                </div>
             </div>
 
             <div class="profile-sections">
@@ -363,6 +373,46 @@
             <button class="btn-secondary btn-full logout-btn" onclick="logout()">Sign Out</button>
         </div>
     </section>
+    <!-- ==================== PREDICTIONS ==================== -->
+    <section id="predictionsSection" class="section">
+        <div class="container">
+            <div class="section-top-row pred-header-row">
+                <div class="pred-header-left">
+                    <h1 class="pred-title">Probability Forecasts</h1>
+                    <p class="section-sub">Assign probabilities to market events. Get scored on calibration.</p>
+                </div>
+                <div class="pred-header-chips">
+                    <div class="calibration-chip" id="calibrationChipHeader">
+                        <span class="cc-label">Calibration Score</span>
+                        <span class="cc-value mono" id="calibrationScoreHeader">—</span>
+                    </div>
+                    <div class="live-chip">
+                        <span class="live-dot-anim"></span>
+                        LIVE CONSENSUS
+                    </div>
+                </div>
+            </div>
+
+            <div class="pred-info-bar">
+                <div class="pib-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                    <span>Events resolve at deadline · Brier Score updates within 1hr</span>
+                </div>
+                <div class="pib-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>Consensus weighted by forecaster calibration scores</span>
+                </div>
+            </div>
+
+            <div id="predictionsGrid" class="predictions-grid">
+                <div class="pred-loading">
+                    <div class="pred-loading-spinner"></div>
+                    Loading forecasts...
+                </div>
+            </div>
+        </div>
+    </section>
+
 <!-- TradingView Lightweight Charts -->
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
@@ -376,6 +426,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
