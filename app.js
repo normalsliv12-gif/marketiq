@@ -1,238 +1,18 @@
 // ============================================================
 //  MARKETIQ — Main Application Logic
 //  Firebase Firestore + Full Game Logic
-//  SECURITY-HARDENED VERSION
 // ============================================================
 
 // ===== STATE =====
-let currentUser   = null;
+let currentUser   = null;   // { username, ...firestoreData }
 let currentPuzzle = null;
 let selectedOption = null;
 let thrillTimer    = null;
 let thrillRemaining = 60;
-let leaderboardUnsubscribe = null;
+let leaderboardUnsubscribe = null; // for real-time listener
 
 // ===== FIRESTORE COLLECTION =====
 const USERS_COL = "users";
-
-// ============================================================
-//  SECURITY MODULE 1: INPUT VALIDATION & SANITIZATION
-//  Defense against XSS and injection attacks.
-//  Never trust user-supplied strings. Sanitize before any
-//  DOM insertion; validate before any Firestore write.
-// ============================================================
-
-/**
- * Strips all HTML tags and encodes dangerous characters.
- * Use on ANY string that will be rendered into the DOM via
- * innerHTML. If you only use textContent, this is a belt-
- * and-suspenders measure — keep it anyway.
- *
- * Attack prevented: Stored XSS
- *   e.g. username = '<img src=x onerror=alert(1)>'
- *   Without this, that string written into innerHTML
- *   would execute arbitrary JavaScript in every victim's
- *   browser that loads the leaderboard.
- */
-function sanitizeString(str) {
-    if (typeof str !== 'string') return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#x27;',
-        '/': '&#x2F;',
-        '`': '&#x60;',
-        '=': '&#x3D;'
-    };
-    return str.replace(/[&<>"'`=/]/g, s => map[s]);
-}
-
-/**
- * Validates a username against a strict allowlist pattern.
- * Only alphanumeric characters and underscores are permitted.
- *
- * Attack prevented: NoSQL Injection / path traversal
- *   Firestore document IDs that look like "../admin" or contain
- *   special characters can cause unpredictable routing. Strict
- *   allowlist validation eliminates the entire class of attack.
- *
- * @param {string} username
- * @returns {{ valid: boolean, error: string|null }}
- */
-function validateUsername(username) {
-    if (!username || typeof username !== 'string') {
-        return { valid: false, error: 'Username is required.' };
-    }
-    const trimmed = username.trim();
-    if (trimmed.length < 3 || trimmed.length > 20) {
-        return { valid: false, error: 'Username must be 3–20 characters.' };
-    }
-    // ALLOWLIST: only a-z, A-Z, 0-9, underscore
-    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-        return { valid: false, error: 'Username may only contain letters, numbers, and underscores.' };
-    }
-    // Block usernames that look like reserved paths
-    const reserved = ['admin', 'root', 'system', 'firebase', 'firestore'];
-    if (reserved.includes(trimmed.toLowerCase())) {
-        return { valid: false, error: 'That username is reserved.' };
-    }
-    return { valid: true, error: null };
-}
-
-/**
- * Validates a password meets minimum security requirements.
- * @param {string} password
- * @returns {{ valid: boolean, error: string|null }}
- */
-function validatePassword(password) {
-    if (!password || typeof password !== 'string') {
-        return { valid: false, error: 'Password is required.' };
-    }
-    if (password.length < 8) {
-        return { valid: false, error: 'Password must be at least 8 characters.' };
-    }
-    if (password.length > 128) {
-        return { valid: false, error: 'Password must be under 128 characters.' };
-    }
-    return { valid: true, error: null };
-}
-
-// ============================================================
-//  SECURITY MODULE 2: ROBUST PASSWORD HASHING
-//
-//  VULNERABILITY IN ORIGINAL CODE:
-//  The original used raw SHA-256 with a single hardcoded salt
-//  ("miq_salt_v1"). This has two critical weaknesses:
-//
-//  1. SPEED ATTACK: SHA-256 is a general-purpose hash designed
-//     for speed. Modern GPUs can compute ~10 billion SHA-256
-//     hashes per second. An attacker who exfiltrates your
-//     Firestore "passwordHash" fields can crack weak passwords
-//     in seconds with offline dictionary/brute-force attacks.
-//
-//  2. SHARED SALT: One hardcoded salt means identical passwords
-//     produce identical hashes. An attacker can precompute a
-//     rainbow table of common passwords against your known salt
-//     and crack all accounts simultaneously.
-//
-//  PRODUCTION RECOMMENDATION:
-//  Move password hashing entirely to a Firebase Cloud Function.
-//  Never hash passwords on the client. The pattern would be:
-//    1. Client sends plaintext password over HTTPS to Cloud Fn.
-//    2. Cloud Function hashes with bcrypt (cost factor 12+).
-//    3. Cloud Function stores the hash; never returns it.
-//  This prevents the client from ever receiving the hash and
-//  ensures the algorithm can be upgraded server-side.
-//
-//  INTERIM MITIGATION (implemented below):
-//  We use PBKDF2 via the Web Crypto API. PBKDF2 is deliberately
-//  slow (100,000 iterations) and uses a unique per-user random
-//  salt, making offline attacks orders of magnitude harder.
-//  This is NOT as strong as bcrypt on a server, but it is a
-//  substantial improvement over plain SHA-256 on the client.
-// ============================================================
-
-/**
- * Derives a strong key from a password using PBKDF2.
- * Generates a cryptographically random per-user salt.
- *
- * @param {string} password  — plaintext password
- * @param {Uint8Array} [salt] — provide to verify; omit to create
- * @returns {Promise<{ hash: string, salt: string }>}
- *          Both values are hex-encoded for Firestore storage.
- */
-async function hashPassword(password, existingSaltHex = null) {
-    const encoder = new TextEncoder();
-
-    // Generate a fresh random salt for new passwords,
-    // or decode the stored one for verification.
-    let saltBytes;
-    if (existingSaltHex) {
-        // Convert stored hex salt back to bytes
-        saltBytes = new Uint8Array(
-            existingSaltHex.match(/.{2}/g).map(b => parseInt(b, 16))
-        );
-    } else {
-        // 16 bytes (128 bits) of cryptographically random salt
-        saltBytes = crypto.getRandomValues(new Uint8Array(16));
-    }
-
-    // Import the password as key material
-    const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(password),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits']
-    );
-
-    // Derive 256 bits using PBKDF2-SHA256 with 100k iterations.
-    // 100,000 iterations means an attacker must do 100,000×
-    // SHA-256 operations per password guess instead of 1.
-    const derivedBits = await crypto.subtle.deriveBits(
-        {
-            name: 'PBKDF2',
-            salt: saltBytes,
-            iterations: 100_000,
-            hash: 'SHA-256'
-        },
-        keyMaterial,
-        256
-    );
-
-    const hashHex = Array.from(new Uint8Array(derivedBits))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-    const saltHex = Array.from(saltBytes)
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-
-    return { hash: hashHex, salt: saltHex };
-}
-
-/**
- * Verify a plaintext password against a stored hash + salt.
- * Uses constant-time comparison to prevent timing attacks.
- *
- * Attack prevented: Timing Attack
- *   A naive string comparison (hash1 === hash2) returns early
- *   on the first mismatching character, leaking timing info
- *   that can help attackers guess passwords byte-by-byte.
- */
-async function verifyPassword(plaintext, storedHash, storedSalt) {
-    const { hash: candidateHash } = await hashPassword(plaintext, storedSalt);
-
-    // Constant-time comparison: always compare every character
-    if (candidateHash.length !== storedHash.length) return false;
-    let diff = 0;
-    for (let i = 0; i < candidateHash.length; i++) {
-        diff |= candidateHash.charCodeAt(i) ^ storedHash.charCodeAt(i);
-    }
-    return diff === 0;
-}
-
-function togglePasswordVisibility(inputId, btn) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    const isHidden = input.type === 'password';
-    input.type = isHidden ? 'text' : 'password';
-    const svgs = btn.querySelectorAll('svg');
-    svgs[0].style.display = isHidden ? 'none' : '';
-    svgs[1].style.display = isHidden ? '' : 'none';
-}
-
-function getPasswordStrength(password) {
-    let score = 0;
-    if (password.length >= 8)  score++;
-    if (password.length >= 12) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-    if (score <= 1) return { label: 'Weak',   color: '#ff4560', width: '25%' };
-    if (score <= 2) return { label: 'Fair',   color: '#ffb800', width: '50%' };
-    if (score <= 3) return { label: 'Good',   color: '#3d8ef0', width: '75%' };
-    return             { label: 'Strong', color: '#00e676', width: '100%' };
-}
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -241,23 +21,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
     animateLoadingBar();
+
+    // Check saved session
     const savedUsername = localStorage.getItem('miq_session');
 
     if (savedUsername) {
-        // Validate the session token shape before using it as a Firestore key
-        const validation = validateUsername(savedUsername);
-        if (!validation.valid) {
-            localStorage.removeItem('miq_session');
-            hideLoading();
-            showSection('login');
-            return;
-        }
-
         try {
             const snap = await db.collection(USERS_COL).doc(savedUsername).get();
             if (snap.exists) {
                 const userData = snap.data();
                 currentUser = userData;
+
+                // Legacy account check: no passwordHash set → force password creation
                 if (!userData.passwordHash) {
                     hideLoading();
                     showSection('home');
@@ -271,6 +46,7 @@ async function initApp() {
                     updateMobileNav('home');
                 }
             } else {
+                // User in storage but not in Firestore (cleared?)
                 localStorage.removeItem('miq_session');
                 hideLoading();
                 showSection('login');
@@ -316,7 +92,10 @@ function showSection(name) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     const el = document.getElementById(name + 'Section');
     if (el) el.classList.add('active');
+
     updateMobileNav(name);
+
+    // Section-specific logic
     if (name === 'home')        { updateHomeStats(); }
     if (name === 'puzzles')     { loadDailyPuzzle(); }
     if (name === 'thrill')      { loadThrillStatus(); }
@@ -357,47 +136,68 @@ function updateNavUser() {
     const navUser = document.getElementById('navUser');
     if (!navUser) return;
     if (currentUser) {
-        // Use textContent, NOT innerHTML, to safely display user data.
-        // This prevents any stored XSS payload in the username from executing.
-        const chip = document.createElement('div');
-        chip.className = 'nav-user-chip';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = currentUser.username; // textContent: XSS-safe
-
-        const ratingSpan = document.createElement('span');
-        ratingSpan.className = 'chip-rating';
-        ratingSpan.textContent = currentUser.rating; // textContent: XSS-safe
-
-        chip.appendChild(nameSpan);
-        chip.appendChild(ratingSpan);
-        navUser.innerHTML = '';
-        navUser.appendChild(chip);
+        navUser.innerHTML = `
+            <div class="nav-user-chip">
+                <span>${currentUser.username}</span>
+                <span class="chip-rating">${currentUser.rating}</span>
+            </div>`;
     } else {
         navUser.innerHTML = `<button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>`;
     }
 }
 
+// ===== PASSWORD UTILITIES =====
+
+// Simple SHA-256 hash using Web Crypto API
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + 'miq_salt_v1');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    const svgs = btn.querySelectorAll('svg');
+    svgs[0].style.display = isHidden ? 'none' : '';
+    svgs[1].style.display = isHidden ? '' : 'none';
+}
+
+function getPasswordStrength(password) {
+    let score = 0;
+    if (password.length >= 8)  score++;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score <= 1) return { label: 'Weak', color: '#ff4560', width: '25%' };
+    if (score <= 2) return { label: 'Fair', color: '#ffb800', width: '50%' };
+    if (score <= 3) return { label: 'Good', color: '#3d8ef0', width: '75%' };
+    return { label: 'Strong', color: '#00e676', width: '100%' };
+}
+
+// Pending user state for password modal flow
+let _pendingModalUser = null;
+
 // ===== LOGIN =====
 async function handleLogin(event) {
     event.preventDefault();
+    const username = document.getElementById('usernameInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
 
-    const rawUsername = document.getElementById('usernameInput').value.trim();
-    const password    = document.getElementById('passwordInput').value;
-
-    // SERVER-SIDE STYLE VALIDATION on the client before touching Firestore
-    const usernameCheck = validateUsername(rawUsername);
-    if (!usernameCheck.valid) {
-        showToast(usernameCheck.error, 'error');
-        return;
-    }
+    if (!username) return;
+    if (username.length < 3) { showToast("Username must be at least 3 characters.", 'error'); return; }
 
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
     btn.textContent = "Connecting...";
 
     try {
-        const ref  = db.collection(USERS_COL).doc(rawUsername);
+        const ref  = db.collection(USERS_COL).doc(username);
         const snap = await ref.get();
 
         if (snap.exists) {
@@ -405,6 +205,7 @@ async function handleLogin(event) {
             const userData = snap.data();
 
             if (userData.passwordHash) {
+                // ── PASSWORD-PROTECTED ACCOUNT: password is mandatory ──
                 if (!password) {
                     showToast("Please enter your password.", 'error');
                     document.getElementById('passwordInput').focus();
@@ -412,49 +213,48 @@ async function handleLogin(event) {
                     btn.textContent = "Start Competing";
                     return;
                 }
-                // SECURITY: verifyPassword uses PBKDF2 + constant-time comparison.
-                // If user was registered under old SHA-256 scheme, they must reset
-                // their password (handled by handleLegacyPassword flow).
-                const isValid = await verifyPassword(password, userData.passwordHash, userData.passwordSalt);
-                if (!isValid) {
-                    // Generic error message — never reveal whether username or password was wrong.
-                    // Attack prevented: Username Enumeration
-                    showToast("Invalid username or password.", 'error');
+                const inputHash = await hashPassword(password);
+                if (inputHash !== userData.passwordHash) {
+                    showToast("Incorrect password. Try again.", 'error');
                     document.getElementById('passwordInput').value = '';
                     document.getElementById('passwordInput').focus();
                     btn.disabled = false;
                     btn.textContent = "Start Competing";
                     return;
                 }
+                // Correct password ✓
                 currentUser = userData;
-                showToast(`Welcome back, ${sanitizeString(rawUsername)}! Rating: ${currentUser.rating}`, 'success');
-                finalizeLogin(rawUsername);
+                showToast(`Welcome back, ${username}! Rating: ${currentUser.rating}`, 'success');
+                finalizeLogin(username);
 
             } else {
-                // Legacy account — force password creation
+                // ── LEGACY ACCOUNT: no password set → force password creation ──
                 currentUser = userData;
-                finalizeLogin(rawUsername, false);
-                handleLegacyPassword(userData, ref, rawUsername);
+                finalizeLogin(username, false);
+                handleLegacyPassword(userData, ref, username);
             }
 
         } else {
-            // ── NEW USER ──
-            const passwordCheck = validatePassword(password);
-            if (!passwordCheck.valid) {
-                showToast(passwordCheck.error || "Please create a password.", 'error');
+            // ── NEW USER: password is mandatory ──
+            if (!password) {
+                showToast("Please create a password to register your account.", 'error');
                 document.getElementById('passwordInput').focus();
                 btn.disabled = false;
                 btn.textContent = "Start Competing";
                 return;
             }
-
-            // PBKDF2 hash with unique random salt
-            const { hash, salt } = await hashPassword(password);
-            const newUser = { ...buildNewUser(rawUsername), passwordHash: hash, passwordSalt: salt };
+            if (password.length < 4) {
+                showToast("Password must be at least 4 characters.", 'error');
+                btn.disabled = false;
+                btn.textContent = "Start Competing";
+                return;
+            }
+            const hash = await hashPassword(password);
+            const newUser = { ...buildNewUser(username), passwordHash: hash };
             await ref.set(newUser);
             currentUser = newUser;
-            showToast(`Welcome to MarketIQ, ${sanitizeString(rawUsername)}! Starting rating: 1200`, 'success');
-            finalizeLogin(rawUsername);
+            showToast(`Welcome to MarketIQ, ${username}! Starting rating: 1200`, 'success');
+            finalizeLogin(username);
         }
 
     } catch (err) {
@@ -495,7 +295,8 @@ function finalizeLogin(username, showModal = true) {
 }
 
 // ===== SET PASSWORD MODAL =====
-let _pendingModalUser = null;
+
+// Tracks whether the modal is in "forced" mode (cannot be dismissed)
 let _modalForced = false;
 
 function openSetPasswordModal(forced = false) {
@@ -506,8 +307,9 @@ function openSetPasswordModal(forced = false) {
     document.getElementById('newPasswordInput').focus();
 }
 
+// Backdrop click — only dismissable when not in forced mode
 function closeSetPasswordModal(event) {
-    if (_modalForced) return;
+    if (_modalForced) return; // cannot dismiss mandatory modal
     if (event && event.target !== document.getElementById('setPasswordModal')) return;
     _pendingModalUser = null;
     _closeModal();
@@ -521,17 +323,23 @@ function _closeModal() {
     document.getElementById('newPasswordInput').removeEventListener('input', onNewPasswordInput);
 }
 
+// ── LEGACY PASSWORD HANDLER ──
+// Called for accounts that exist in Firestore but have no passwordHash.
+// Forces the user to create a password before they can use the app.
 function handleLegacyPassword(userData, ref, username) {
     _pendingModalUser = { userData, ref, username, isNew: false, isLegacy: true };
+
     const titleEl    = document.getElementById('setPasswordTitle');
     const subtitleEl = document.getElementById('setPasswordSubtitle');
     if (titleEl)    titleEl.textContent    = "Password Required";
     if (subtitleEl) subtitleEl.textContent = "Your account needs a password to stay secure. Please create one to continue.";
+
     document.getElementById('newPasswordInput').value     = '';
     document.getElementById('confirmPasswordInput').value = '';
     document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
-    showToast(`Welcome back, ${sanitizeString(username)}! Please set a password to continue.`, 'info');
-    openSetPasswordModal(true);
+
+    showToast(`Welcome back, ${username}! Please set a password to continue.`, 'info');
+    openSetPasswordModal(true /* forced */);
 }
 
 function onNewPasswordInput() {
@@ -552,28 +360,29 @@ async function confirmSetPassword() {
     const newPw  = document.getElementById('newPasswordInput').value;
     const confPw = document.getElementById('confirmPasswordInput').value;
 
-    const pwCheck = validatePassword(newPw);
-    if (!pwCheck.valid) { showToast(pwCheck.error, 'error'); return; }
+    if (newPw.length < 4) { showToast("Password must be at least 4 characters.", 'error'); return; }
     if (newPw !== confPw) { showToast("Passwords don't match.", 'error'); return; }
+    // Strength is shown as guidance only — any password ≥ 4 chars is accepted at the user's discretion.
 
     const btn = document.getElementById('setPasswordBtn');
     btn.disabled = true;
     btn.textContent = "Saving...";
 
     try {
-        // PBKDF2 hash with fresh random salt
-        const { hash, salt } = await hashPassword(newPw);
+        const hash = await hashPassword(newPw);
         if (_pendingModalUser) {
-            await _pendingModalUser.ref.update({ passwordHash: hash, passwordSalt: salt });
-            if (currentUser) {
-                currentUser.passwordHash = hash;
-                currentUser.passwordSalt = salt;
-            }
+            await _pendingModalUser.ref.update({ passwordHash: hash });
+            if (currentUser) currentUser.passwordHash = hash;
         }
         _closeModal();
         showToast("Password set! Your account is now protected.", 'success');
         _pendingModalUser = null;
-        if (currentUser) { updateNavUser(); showSection('home'); }
+
+        // If this was a legacy forced-modal flow, ensure home is shown
+        if (currentUser) {
+            updateNavUser();
+            showSection('home');
+        }
     } catch (err) {
         console.error("Set password error:", err);
         showToast("Failed to save password. Try again.", 'error');
@@ -594,20 +403,25 @@ function logout() {
     showToast("Signed out. See you tomorrow!", 'info');
 }
 
+// ===== CHANGE PASSWORD (from Profile) =====
 function changePassword() {
     if (!currentUser) return;
     const ref = db.collection(USERS_COL).doc(currentUser.username);
+
     _pendingModalUser = { userData: currentUser, ref, username: currentUser.username, isNew: false, isLegacy: false };
+
     const titleEl    = document.getElementById('setPasswordTitle');
     const subtitleEl = document.getElementById('setPasswordSubtitle');
     if (titleEl)    titleEl.textContent    = "Change Password";
-    if (subtitleEl) subtitleEl.textContent = "Enter a new password for your account.";
+    if (subtitleEl) subtitleEl.textContent = "Enter a new password for your account. You can do this any time.";
+
     document.getElementById('newPasswordInput').value     = '';
     document.getElementById('confirmPasswordInput').value = '';
     const strengthWrap = document.getElementById('passwordStrengthWrap');
     if (strengthWrap) strengthWrap.style.display = 'none';
+
     document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
-    openSetPasswordModal(false);
+    openSetPasswordModal(false /* not forced — user can navigate away */);
 }
 
 // ===== HOME STATS =====
@@ -639,6 +453,7 @@ function resetDailyIfNeeded() {
     if (currentUser.lastPlayedDate !== today) {
         currentUser.dailyPuzzlesCompleted = 0;
         currentUser.lastPlayedDate = today;
+        // Don't save to Firestore yet — will save when they answer
     }
 }
 
@@ -646,6 +461,7 @@ function loadDailyPuzzle() {
     if (!currentUser) { showSection('login'); return; }
     resetDailyIfNeeded();
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
+
     const remaining = 5 - currentUser.dailyPuzzlesCompleted;
     setEl('puzzlesRemaining', `${Math.max(0, remaining)} remaining`);
 
@@ -654,46 +470,65 @@ function loadDailyPuzzle() {
         document.getElementById('noPuzzlesMessage').style.display = 'block';
         return;
     }
+
     document.getElementById('puzzleContainer').style.display = 'block';
     document.getElementById('noPuzzlesMessage').style.display = 'none';
+
     currentPuzzle = DAILY_PUZZLES[currentUser.dailyPuzzlesCompleted];
     selectedOption = null;
     renderPuzzle(document.getElementById('puzzleContainer'), currentPuzzle, false);
 }
-
 function renderChart(data) {
-    if (!window.LightweightCharts) { console.error("LightweightCharts not loaded"); return; }
+    if (!window.LightweightCharts) {
+        console.error("LightweightCharts not loaded");
+        return;
+    }
+
     const container = document.getElementById('chartContainer');
-    if (!container) { console.error("Chart container not found"); return; }
+    if (!container) {
+        console.error("Chart container not found");
+        return;
+    }
+
     const chart = LightweightCharts.createChart(container, {
-        width: container.clientWidth, height: 320,
-        layout: { background: { color: '#0f172a' }, textColor: '#d1d5db' },
-        grid: { vertLines: { color: '#1f2937' }, horzLines: { color: '#1f2937' } },
+        width: container.clientWidth,
+        height: 320,
+        layout: {
+            background: { color: '#0f172a' },
+            textColor: '#d1d5db',
+        },
+        grid: {
+            vertLines: { color: '#1f2937' },
+            horzLines: { color: '#1f2937' },
+        },
         crosshair: { mode: 1 },
         rightPriceScale: { borderColor: '#374151' },
         timeScale: { borderColor: '#374151' }
     });
+
     const candleSeries = chart.addCandlestickSeries();
     candleSeries.setData(data);
-    window.addEventListener('resize', () => chart.applyOptions({ width: container.clientWidth }));
+
+    window.addEventListener('resize', () => {
+        chart.applyOptions({
+            width: container.clientWidth
+        });
+    });
 }
 
 function renderPuzzle(container, puzzle, isThrill) {
-    // SECURITY: Build DOM nodes rather than concatenating raw strings
-    // for dynamic content. Static template strings for structural HTML
-    // are fine; user-controlled strings must use textContent or sanitizeString.
-    const label = isThrill
-        ? 'THRILL ROUND'
-        : `Puzzle ${(currentUser.dailyPuzzlesCompleted ?? 0) + 1} of ${DAILY_PUZZLES.length}`;
+    const label = isThrill ? 'THRILL ROUND' : `Puzzle ${(currentUser.dailyPuzzlesCompleted ?? 0) + 1} of ${DAILY_PUZZLES.length}`;
+    const chartHTML = `
+    <div class="puzzle-chart">
+        <div id="chartContainer" style="width:100%; height:320px;"></div>
+    </div>
+`;
 
-    // Options HTML uses hardcoded puzzle data (not user input), so template literals are safe.
-    // If puzzle data ever comes from user submissions, sanitize here.
+
     container.innerHTML = `
         <div class="puzzle-label">${label}</div>
         <h2 class="puzzle-title">${puzzle.title}</h2>
-        <div class="puzzle-chart">
-            <div id="chartContainer" style="width:100%; height:320px;"></div>
-        </div>
+        ${chartHTML}
         <div class="puzzle-context">
             <div class="puzzle-context-label">Context</div>
             <p>${puzzle.context}</p>
@@ -705,10 +540,10 @@ function renderPuzzle(container, puzzle, isThrill) {
         <div class="options-grid" id="optGrid_${isThrill ? 'thrill' : 'daily'}">
             ${puzzle.options.map(o => `
                 <button class="option-btn"
-                    data-quality="${sanitizeString(o.quality)}"
-                    data-id="${sanitizeString(o.id)}"
+                    data-quality="${o.quality}"
+                    data-id="${o.id}"
                     onclick="selectOption(this, ${isThrill})">
-                    <span class="option-id">${sanitizeString(o.id)}</span>
+                    <span class="option-id">${o.id}</span>
                     ${o.text}
                 </button>
             `).join('')}
@@ -719,7 +554,13 @@ function renderPuzzle(container, puzzle, isThrill) {
         </button>
         <div id="feedbackArea_${isThrill ? 'thrill' : 'daily'}"></div>
     `;
-    setTimeout(() => { if (puzzle.chartData) renderChart(puzzle.chartData); }, 50);
+// Delay slightly so DOM renders first
+setTimeout(() => {
+    if (puzzle.chartData) {
+        renderChart(puzzle.chartData);
+    }
+}, 50);
+
 }
 
 function selectOption(btn, isThrill) {
@@ -734,30 +575,24 @@ function selectOption(btn, isThrill) {
 
 async function submitAnswer(isThrill) {
     if (!selectedOption || !currentPuzzle) return;
-
-    // Validate that selectedOption is one of the expected values
-    // Prevents a tampered dataset.quality attribute from writing arbitrary data to Firestore
-    const validQualities = ['optimal', 'good', 'risky', 'poor'];
-    if (!validQualities.includes(selectedOption)) {
-        console.error('Invalid quality value detected:', selectedOption);
-        showToast('An error occurred. Please refresh.', 'error');
-        return;
-    }
-
     if (isThrill && thrillTimer) { clearInterval(thrillTimer); thrillTimer = null; }
 
+    // Disable all options
     const gridId = `optGrid_${isThrill ? 'thrill' : 'daily'}`;
     document.querySelectorAll(`#${gridId} .option-btn`).forEach(btn => {
         btn.disabled = true;
         if (btn.dataset.quality === 'optimal') btn.classList.add('reveal-optimal');
-        else if (btn.classList.contains('selected')) btn.classList.add('reveal-wrong');
+        else if (btn.classList.contains('selected'))  btn.classList.add('reveal-wrong');
     });
     const submitId = `submitBtn_${isThrill ? 'thrill' : 'daily'}`;
     const submitBtn = document.getElementById(submitId);
     if (submitBtn) submitBtn.style.display = 'none';
 
+    // Rating change
     const ratingDelta = isThrill ? THRILL_RATING_CHANGES[selectedOption] : RATING_CHANGES[selectedOption];
+    const isGoodChoice = selectedOption === 'optimal' || selectedOption === 'good';
 
+    // Update local user object
     currentUser.rating         += ratingDelta;
     currentUser.puzzlesSolved  += 1;
     currentUser.performance[selectedOption]++;
@@ -771,18 +606,21 @@ async function submitAnswer(isThrill) {
         currentUser.dailyPuzzlesCompleted = Math.min((currentUser.dailyPuzzlesCompleted || 0) + 1, DAILY_PUZZLES.length);
         currentUser.lastPlayedDate = todayKey();
     }
+
+    // Update streak
     updateStreak();
 
+    // Save to Firestore
     try {
         await db.collection(USERS_COL).doc(currentUser.username).update({
-            rating:                currentUser.rating,
-            puzzlesSolved:         currentUser.puzzlesSolved,
-            accuracy:              currentUser.accuracy,
-            streak:                currentUser.streak,
-            performance:           currentUser.performance,
-            dailyPuzzlesCompleted: currentUser.dailyPuzzlesCompleted,
-            lastPlayedDate:        currentUser.lastPlayedDate,
-            lastThrillDate:        currentUser.lastThrillDate,
+            rating:                 currentUser.rating,
+            puzzlesSolved:          currentUser.puzzlesSolved,
+            accuracy:               currentUser.accuracy,
+            streak:                 currentUser.streak,
+            performance:            currentUser.performance,
+            dailyPuzzlesCompleted:  currentUser.dailyPuzzlesCompleted,
+            lastPlayedDate:         currentUser.lastPlayedDate,
+            lastThrillDate:         currentUser.lastThrillDate,
             recentActivity: firebase.firestore.FieldValue.arrayUnion({
                 puzzle:      currentPuzzle.title,
                 quality:     selectedOption,
@@ -795,11 +633,15 @@ async function submitAnswer(isThrill) {
         showToast("Saved locally. Sync may retry.", 'warning');
     }
 
+    // Update nav chip
     updateNavUser();
     updateProgressDots(currentUser.dailyPuzzlesCompleted);
     setEl('dailyRemaining', Math.max(0, 3 - currentUser.dailyPuzzlesCompleted));
+
+    // Floating rating animation
     spawnFloatRating(ratingDelta);
 
+    // Render feedback
     const feedbackArea = document.getElementById(`feedbackArea_${isThrill ? 'thrill' : 'daily'}`);
     renderFeedback(feedbackArea, currentPuzzle, selectedOption, ratingDelta, isThrill);
 }
@@ -808,8 +650,12 @@ function renderFeedback(container, puzzle, quality, ratingDelta, isThrill) {
     const labels = { optimal: '🎯 Optimal Decision', good: '✅ Good Choice', risky: '⚠️ Risky Move', poor: '❌ Poor Decision' };
     const sign   = ratingDelta >= 0 ? '+' : '';
     const cls    = ratingDelta >= 0 ? 'pos' : 'neg';
-    const nextLabel  = isThrill ? 'Back to Home' : currentUser.dailyPuzzlesCompleted >= DAILY_PUZZLES.length ? 'View Results' : 'Next Puzzle →';
-    const nextAction = isThrill ? `showSection('home')` : `loadDailyPuzzle()`;
+    const nextLabel = isThrill
+        ? 'Back to Home'
+        : currentUser.dailyPuzzlesCompleted >= DAILY_PUZZLES.length ? 'View Results' : 'Next Puzzle →';
+    const nextAction = isThrill
+        ? `showSection('home')`
+        : `loadDailyPuzzle()`;
 
     container.innerHTML = `
         <div class="feedback-block ${quality}">
@@ -826,6 +672,7 @@ function renderFeedback(container, puzzle, quality, ratingDelta, isThrill) {
 function loadThrillStatus() {
     if (!currentUser) { showSection('login'); return; }
     resetDailyIfNeeded();
+
     const container = document.getElementById('thrillStatus');
     const alreadyDone = currentUser.lastThrillDate === todayKey();
 
@@ -844,9 +691,18 @@ function loadThrillStatus() {
             <h2>Ready for the Challenge?</h2>
             <p>One high-volatility scenario. One decision. 60 seconds on the clock.</p>
             <div class="thrill-stakes">
-                <div class="stake-box"><div class="stake-label">Optimal</div><div class="stake-val pos">+10</div></div>
-                <div class="stake-box"><div class="stake-label">Good</div><div class="stake-val" style="color:var(--blue)">+5</div></div>
-                <div class="stake-box"><div class="stake-label">Risky / Poor</div><div class="stake-val neg">−5</div></div>
+                <div class="stake-box">
+                    <div class="stake-label">Optimal</div>
+                    <div class="stake-val pos">+10</div>
+                </div>
+                <div class="stake-box">
+                    <div class="stake-label">Good</div>
+                    <div class="stake-val" style="color:var(--blue)">+5</div>
+                </div>
+                <div class="stake-box">
+                    <div class="stake-label">Risky / Poor</div>
+                    <div class="stake-val neg">−5</div>
+                </div>
             </div>
             <button class="btn-primary btn-large" onclick="startThrillRound()" style="background:var(--orange);color:#fff">
                 Start Thrill Round
@@ -858,12 +714,14 @@ function loadThrillStatus() {
 function startThrillRound() {
     thrillRemaining = 60;
     selectedOption  = null;
+
     const puzzle = THRILL_PUZZLES[Math.floor(Math.random() * THRILL_PUZZLES.length)];
     currentPuzzle = puzzle;
 
     const statusEl = document.getElementById('thrillStatus');
     const puzzleEl = document.getElementById('thrillPuzzleContainer');
 
+    // Show circular timer
     statusEl.innerHTML = `
         <div style="text-align:center; margin-bottom:24px;">
             <div class="thrill-timer-wrap">
@@ -883,16 +741,21 @@ function startThrillRound() {
 }
 
 function startThrillCountdown() {
-    const circumference = 2 * Math.PI * 44;
+    const circumference = 2 * Math.PI * 44; // 276.46
+
     thrillTimer = setInterval(() => {
         thrillRemaining--;
+
         const timerText = document.getElementById('timerDisplay');
         const circle    = document.getElementById('timerCircle');
+
         if (timerText) timerText.textContent = thrillRemaining;
         if (circle) {
             const offset = circumference - (thrillRemaining / 60) * circumference;
             circle.style.strokeDashoffset = offset;
         }
+
+        // Change color as time runs low
         if (circle) {
             if (thrillRemaining <= 10)      circle.style.stroke = 'var(--red)';
             else if (thrillRemaining <= 30) circle.style.stroke = 'var(--amber)';
@@ -901,8 +764,11 @@ function startThrillCountdown() {
             if (thrillRemaining <= 10)      timerText.style.color = 'var(--red)';
             else if (thrillRemaining <= 30) timerText.style.color = 'var(--amber)';
         }
+
         if (thrillRemaining <= 0) {
-            clearInterval(thrillTimer); thrillTimer = null;
+            clearInterval(thrillTimer);
+            thrillTimer = null;
+            // Auto-submit as poor if no answer
             if (!selectedOption) selectedOption = 'poor';
             submitAnswer(true);
             showToast("Time's up! Auto-submitted.", 'warning');
@@ -913,9 +779,14 @@ function startThrillCountdown() {
 // ===== LEADERBOARD (Real-time) =====
 function subscribeLeaderboard() {
     if (leaderboardUnsubscribe) leaderboardUnsubscribe();
+
     const body = document.getElementById('leaderboardBody');
     if (body) body.innerHTML = '<div class="lb-loading">Loading rankings...</div>';
-    const q = db.collection(USERS_COL).orderBy('rating', 'desc').limit(20);
+
+    const q = db.collection(USERS_COL)
+        .orderBy('rating', 'desc')
+        .limit(20);
+
     leaderboardUnsubscribe = q.onSnapshot(snapshot => {
         renderLeaderboard(snapshot.docs);
     }, err => {
@@ -927,69 +798,57 @@ function subscribeLeaderboard() {
 function renderLeaderboard(docs) {
     const body = document.getElementById('leaderboardBody');
     if (!body) return;
+
     if (docs.length === 0) {
         body.innerHTML = '<div class="lb-loading">No competitors yet. Be the first!</div>';
         return;
     }
 
-    // SECURITY: Build leaderboard rows using DOM methods (textContent) instead of
-    // string concatenation to prevent XSS from malicious usernames stored in Firestore.
-    body.innerHTML = '';
-    docs.forEach((doc, i) => {
+    body.innerHTML = docs.map((doc, i) => {
         const u = doc.data();
         const rank = i + 1;
         const isMe = currentUser && u.username === currentUser.username;
         const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
 
-        const row = document.createElement('div');
-        row.className = `lb-row${isMe ? ' is-me' : ''}`;
-
-        // Each cell uses textContent — XSS-safe regardless of what's in Firestore
-        const rankCell = document.createElement('div'); rankCell.className = 'lbc rank';
-        const badge = document.createElement('span'); badge.className = `rank-badge ${rankClass}`;
-        badge.textContent = `#${rank}`;
-        rankCell.appendChild(badge);
-
-        const nameCell = document.createElement('div'); nameCell.className = 'lbc username';
-        const nameSpan = document.createElement('span'); nameSpan.className = `lb-username${isMe ? ' me' : ''}`;
-        nameSpan.textContent = u.username + (isMe ? ' (you)' : '');
-        nameCell.appendChild(nameSpan);
-
-        const ratingCell = document.createElement('div'); ratingCell.className = 'lbc rating';
-        const ratingSpan = document.createElement('span'); ratingSpan.className = 'lb-rating-val';
-        ratingSpan.textContent = u.rating;
-        ratingCell.appendChild(ratingSpan);
-
-        const accCell = document.createElement('div'); accCell.className = 'lbc accuracy';
-        const accSpan = document.createElement('span'); accSpan.className = 'lb-accuracy-val';
-        accSpan.textContent = `${u.accuracy}%`;
-        accCell.appendChild(accSpan);
-
-        const puzCell = document.createElement('div'); puzCell.className = 'lbc puzzles';
-        const puzSpan = document.createElement('span'); puzSpan.className = 'lb-puzzles-val';
-        puzSpan.textContent = u.puzzlesSolved;
-        puzCell.appendChild(puzSpan);
-
-        row.append(rankCell, nameCell, ratingCell, accCell, puzCell);
-        body.appendChild(row);
-    });
+        return `
+            <div class="lb-row ${isMe ? 'is-me' : ''}">
+                <div class="lbc rank">
+                    <span class="rank-badge ${rankClass}">#${rank}</span>
+                </div>
+                <div class="lbc username">
+                    <span class="lb-username ${isMe ? 'me' : ''}">${u.username}${isMe ? ' (you)' : ''}</span>
+                </div>
+                <div class="lbc rating">
+                    <span class="lb-rating-val">${u.rating}</span>
+                </div>
+                <div class="lbc accuracy">
+                    <span class="lb-accuracy-val">${u.accuracy}%</span>
+                </div>
+                <div class="lbc puzzles">
+                    <span class="lb-puzzles-val">${u.puzzlesSolved}</span>
+                </div>
+            </div>`;
+    }).join('');
 }
 
 // ===== PROFILE =====
 async function renderProfile() {
     if (!currentUser) { showSection('login'); return; }
+
+    // Refresh user data from Firestore
     try {
         const snap = await db.collection(USERS_COL).doc(currentUser.username).get();
         if (snap.exists) currentUser = snap.data();
     } catch (err) { /* use local data */ }
 
     const u = currentUser;
-    setEl('profileUsername', u.username);       // setEl uses textContent — safe
+    setEl('profileUsername', u.username);
     setEl('profileRating', u.rating);
     setEl('profileAccuracy', `${u.accuracy}%`);
     setEl('profilePuzzles', u.puzzlesSolved);
     setEl('profileStreak', u.streak);
 
+    // Calibration score display
     const calibScore = u.calibrationScore != null ? u.calibrationScore.toFixed(3) : '—';
     const calibForecastCount = u.calibrationForecastCount || 0;
     setEl('profileCalibrationScore', calibScore);
@@ -1004,13 +863,17 @@ async function renderProfile() {
         }
     }
 
+    // Avatar initial
     const av = document.getElementById('profileAvatar');
     if (av) av.textContent = u.username.charAt(0).toUpperCase();
 
-    const rankSnap = await db.collection(USERS_COL).where('rating', '>', u.rating).get().catch(() => null);
+    // Global rank
+    const rankSnap = await db.collection(USERS_COL)
+        .where('rating', '>', u.rating).get().catch(() => null);
     const rank = rankSnap ? rankSnap.size + 1 : '—';
     setEl('profileRankBadge', `#${rank} Global Rank`);
 
+    // Breakdown bars
     const total = u.puzzlesSolved || 1;
     const perf  = u.performance || {};
     animateBar('barOptimal', perf.optimal || 0, total);
@@ -1022,36 +885,26 @@ async function renderProfile() {
     setEl('riskyCount',   perf.risky   || 0);
     setEl('poorCount',    perf.poor    || 0);
 
+    // Recent activity
     const actFeed = document.getElementById('recentActivity');
     const activity = (u.recentActivity || []).slice().reverse().slice(0, 10);
     if (actFeed) {
         if (activity.length === 0) {
             actFeed.innerHTML = '<p class="empty-activity">No activity yet. Start solving puzzles!</p>';
         } else {
-            // SECURITY: Use DOM construction for user-influenced data
-            actFeed.innerHTML = '';
-            activity.forEach(a => {
+            actFeed.innerHTML = activity.map(a => {
                 const sign  = a.ratingDelta >= 0 ? '+' : '';
                 const cls   = a.ratingDelta >= 0 ? 'pos' : 'neg';
                 const when  = timeAgo(a.ts);
-
-                const item = document.createElement('div');
-                item.className = 'activity-item';
-
-                const left = document.createElement('div');
-                const title = document.createElement('div'); title.className = 'act-title';
-                title.textContent = a.puzzle; // textContent: safe
-                const meta = document.createElement('div'); meta.className = 'act-meta';
-                meta.textContent = `${a.quality.toUpperCase()} · ${when}`;
-                left.append(title, meta);
-
-                const result = document.createElement('div');
-                result.className = `activity-result ${cls}`;
-                result.textContent = `${sign}${a.ratingDelta}`;
-
-                item.append(left, result);
-                actFeed.appendChild(item);
-            });
+                return `
+                    <div class="activity-item">
+                        <div>
+                            <div class="act-title">${a.puzzle}</div>
+                            <div class="act-meta">${a.quality.toUpperCase()} · ${when}</div>
+                        </div>
+                        <div class="activity-result ${cls}">${sign}${a.ratingDelta}</div>
+                    </div>`;
+            }).join('');
         }
     }
 }
@@ -1068,6 +921,7 @@ function updateStreak() {
     const today     = todayKey();
     const yesterday = yesterdayKey();
     const last      = currentUser.lastPlayedDate;
+
     if (!last || last === yesterday) {
         currentUser.streak = (last === yesterday) ? (currentUser.streak || 0) + 1 : 1;
     } else if (last !== today) {
@@ -1075,31 +929,30 @@ function updateStreak() {
     }
 }
 
-// ===== TOAST =====
+// ===== TOAST SYSTEM =====
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     if (!container) return;
+
     const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icon = document.createElement('span'); icon.className = 'toast-icon';
-    icon.textContent = icons[type] || 'ℹ️';
-    const msg = document.createElement('span');
-    msg.textContent = message; // textContent: prevents XSS in toast messages
-    toast.append(icon, msg);
+    toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
     container.appendChild(toast);
+
     setTimeout(() => {
         toast.classList.add('hiding');
         setTimeout(() => toast.remove(), 300);
     }, 3500);
 }
 
-// ===== FLOATING RATING =====
+// ===== FLOATING RATING CHANGE =====
 function spawnFloatRating(delta) {
     const el = document.createElement('div');
     el.className = `float-rating ${delta >= 0 ? 'pos' : 'neg'}`;
     el.textContent = (delta >= 0 ? '+' : '') + delta;
-    el.style.left = '50%'; el.style.top = '45%';
+    el.style.left = '50%';
+    el.style.top  = '45%';
     el.style.transform = 'translateX(-50%)';
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1300);
@@ -1114,16 +967,10 @@ function yesterdayKey() {
     const d = new Date(); d.setDate(d.getDate() - 1);
     return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 }
-
-/**
- * Safe DOM text setter. Uses textContent, never innerHTML.
- * This is the correct way to set dynamic text in the DOM.
- */
 function setEl(id, val) {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
 }
-
 function timeAgo(ts) {
     const s = Math.floor((Date.now() - ts) / 1000);
     if (s < 60)    return 'just now';
@@ -1132,49 +979,60 @@ function timeAgo(ts) {
     return `${Math.floor(s/86400)}d ago`;
 }
 
+
 // ============================================================
 //  PREDICTIONS MODULE — Weekly Forecasting
+//  3 questions · crowd consensus · Chart.js visualization
 // ============================================================
 
+
+// ===== PREDICTION QUESTIONS (edit weekly) =====
 const PREDICTION_QUESTIONS = [
     {
-        id: 'q1', category: 'Index',
+        id: 'q1',
+        category: 'Index',
         text: 'Will Nifty 50 close above its current level by end of this week?',
         description: 'Based on technical setup, macro flow, and FII/DII data.',
         disclaimer: 'For educational purposes only. Not financial advice.'
     },
     {
-        id: 'q2', category: 'Crypto',
+        id: 'q2',
+        category: 'Crypto',
         text: 'Will Bitcoin trade above $70,000 at any point this week?',
         description: 'Consider ETF flow trends, macro risk sentiment, and on-chain data.',
         disclaimer: 'Crypto markets are highly volatile. Educational only.'
     },
     {
-        id: 'q3', category: 'Macro',
+        id: 'q3',
+        category: 'Macro',
         text: 'Will the US Dollar Index (DXY) weaken vs the Indian Rupee this week?',
         description: 'Factor in Fed rhetoric, RBI stance, and crude oil impact on INR.',
         disclaimer: 'FX forecasting involves significant uncertainty.'
     }
 ];
 
+// ===== STATE =====
 let predictionAnswers  = { q1: null, q2: null, q3: null };
 let predTimerInterval  = null;
-const predChartInstances = {};
+const predChartInstances = {};   // track Chart.js instances to destroy on re-render
 
+// ===== WEEK KEY HELPERS =====
 function getCurrentWeekKey() {
     const now  = new Date();
     const year = now.getFullYear();
+    // ISO week number
     const startOfYear = new Date(year, 0, 1);
     const week = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
     return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
 function getTimeUntilWeekEnd() {
-    const now = new Date();
+    const now    = new Date();
+    // Week ends Sunday 23:59:59
     const endOfWeek = new Date(now);
     endOfWeek.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7);
     endOfWeek.setHours(23, 59, 59, 999);
-    const diff = endOfWeek - now;
+    const diff   = endOfWeek - now;
     return {
         days:    Math.floor(diff / 86400000),
         hours:   Math.floor((diff % 86400000) / 3600000),
@@ -1189,16 +1047,27 @@ function formatTimeRemaining({ days, hours, minutes, seconds }) {
     return `${minutes}m ${seconds}s`;
 }
 
+// ===== LOAD PREDICTIONS =====
 async function loadPredictions() {
     if (!currentUser) { showSection('login'); return; }
+
+    // Clear any existing timer
     if (predTimerInterval) { clearInterval(predTimerInterval); predTimerInterval = null; }
+
     const weekKey = getCurrentWeekKey();
+
+    // Start countdown
     updatePredictionTimer();
     predTimerInterval = setInterval(updatePredictionTimer, 1000);
+
     try {
         const userPredRef  = db.collection('userPredictions').doc(currentUser.username);
         const userPredSnap = await userPredRef.get();
-        const hasSubmitted = userPredSnap.exists && userPredSnap.data()[weekKey]?.submitted;
+
+        const hasSubmitted = userPredSnap.exists &&
+                             userPredSnap.data()[weekKey] &&
+                             userPredSnap.data()[weekKey].submitted;
+
         if (hasSubmitted) {
             document.getElementById('predForecastView').style.display = 'none';
             document.getElementById('predResultsView').style.display  = 'block';
@@ -1214,16 +1083,20 @@ async function loadPredictions() {
     }
 }
 
+// ===== COUNTDOWN TIMER =====
 function updatePredictionTimer() {
     const el = document.getElementById('predTimeRemaining');
     if (!el) return;
     el.textContent = formatTimeRemaining(getTimeUntilWeekEnd());
 }
 
+// ===== RENDER QUESTION CARDS =====
 function renderPredictionQuestions() {
     predictionAnswers = { q1: null, q2: null, q3: null };
+
     const container = document.getElementById('predQuestionsContainer');
     if (!container) return;
+
     container.innerHTML = PREDICTION_QUESTIONS.map((q, i) => `
         <div class="pred-question-card" style="animation-delay:${i * 0.08}s">
             <div class="pred-q-header">
@@ -1232,6 +1105,7 @@ function renderPredictionQuestions() {
             </div>
             <h3 class="pred-q-text">${q.text}</h3>
             <p class="pred-q-desc">${q.description}</p>
+
             <div class="pred-slider-wrap">
                 <div class="pred-slider-label-row">
                     <span class="pred-slider-side low">Unlikely</span>
@@ -1251,75 +1125,96 @@ function renderPredictionQuestions() {
                     <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
                 </div>
             </div>
+
             <div class="pred-disclaimer">${q.disclaimer}</div>
         </div>
     `).join('');
+
+    // Reset submit button
     const btn = document.getElementById('predSubmitBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Submit Forecasts <span class="btn-arrow">→</span>'; }
+    if (btn) {
+        btn.disabled     = true;
+        btn.innerHTML    = 'Submit Forecasts <span class="btn-arrow">→</span>';
+    }
     const hint = document.querySelector('.pred-submit-hint');
     if (hint) hint.style.display = 'block';
 }
 
+// ===== SLIDER UPDATE =====
 function updatePredictionValue(questionId, value) {
-    // Validate that questionId is one of the known IDs before using it
-    if (!['q1', 'q2', 'q3'].includes(questionId)) return;
-
     const num     = parseInt(value);
-    if (isNaN(num) || num < 0 || num > 100) return; // bounds check
-
     const valueEl = document.getElementById(`value_${questionId}`);
     const fillEl  = document.getElementById(`fill_${questionId}`);
+
     if (valueEl) valueEl.textContent = num;
     if (fillEl)  fillEl.style.width  = num + '%';
 
+    // Color the value pill by zone
     const pill = valueEl?.closest('.pred-value-pill');
     if (pill) {
         pill.className = 'pred-value-pill';
         if (num >= 70)      pill.classList.add('prob-high');
         else if (num <= 30) pill.classList.add('prob-low');
     }
+
     predictionAnswers[questionId] = num;
+
+    // Enable submit only when ALL three sliders have been touched
     const allSet = Object.values(predictionAnswers).every(v => v !== null);
-    const btn = document.getElementById('predSubmitBtn');
-    const hint = document.querySelector('.pred-submit-hint');
+    const btn    = document.getElementById('predSubmitBtn');
+    const hint   = document.querySelector('.pred-submit-hint');
     if (btn) btn.disabled = !allSet;
     if (hint) hint.style.display = allSet ? 'none' : 'block';
 }
 
+// ===== SUBMIT PREDICTIONS =====
 async function submitPredictions() {
     if (!currentUser) return;
+
     const allSet = Object.values(predictionAnswers).every(v => v !== null);
     if (!allSet) { showToast('Please move all three sliders first.', 'warning'); return; }
-
-    // Server-side style bounds check before writing to Firestore
-    for (const [key, val] of Object.entries(predictionAnswers)) {
-        if (!Number.isInteger(val) || val < 0 || val > 100) {
-            showToast('Invalid prediction value detected.', 'error');
-            return;
-        }
-    }
 
     const weekKey   = getCurrentWeekKey();
     const timestamp = Date.now();
     const submitBtn = document.getElementById('predSubmitBtn');
-    submitBtn.disabled  = true;
-    submitBtn.innerHTML = 'Submitting...';
+
+    submitBtn.disabled   = true;
+    submitBtn.innerHTML  = 'Submitting...';
 
     try {
         const batch = db.batch();
+
+        // Store each individual forecast (for crowd aggregation)
         PREDICTION_QUESTIONS.forEach(q => {
-            const predRef = db.collection('predictions').doc(weekKey).collection(q.id).doc(currentUser.username);
-            batch.set(predRef, { probability: predictionAnswers[q.id], timestamp, username: currentUser.username });
+            const predRef = db.collection('predictions')
+                              .doc(weekKey)
+                              .collection(q.id)
+                              .doc(currentUser.username);
+            batch.set(predRef, {
+                probability: predictionAnswers[q.id],
+                timestamp,
+                username: currentUser.username
+            });
         });
+
+        // Store submission record on user doc
         const userPredRef = db.collection('userPredictions').doc(currentUser.username);
         batch.set(userPredRef, {
-            [weekKey]: { submitted: true, timestamp, answers: [predictionAnswers.q1, predictionAnswers.q2, predictionAnswers.q3] }
+            [weekKey]: {
+                submitted: true,
+                timestamp,
+                answers: [predictionAnswers.q1, predictionAnswers.q2, predictionAnswers.q3]
+            }
         }, { merge: true });
+
         await batch.commit();
+
         showToast('✅ Forecasts submitted!', 'success');
+
         document.getElementById('predForecastView').style.display = 'none';
         document.getElementById('predResultsView').style.display  = 'block';
         await renderPredictionResults(weekKey);
+
     } catch (err) {
         console.error('Error submitting predictions:', err);
         showToast('Submission failed. Check your connection.', 'error');
@@ -1328,10 +1223,17 @@ async function submitPredictions() {
     }
 }
 
+// ===== RENDER RESULTS =====
 async function renderPredictionResults(weekKey) {
     const container = document.getElementById('predResultsContainer');
     if (!container) return;
-    container.innerHTML = `<div class="pred-results-loading"><div class="pred-loading-spinner"></div>Loading crowd data...</div>`;
+    container.innerHTML = `
+        <div class="pred-results-loading">
+            <div class="pred-loading-spinner"></div>
+            Loading crowd data...
+        </div>`;
+
+    // Destroy any existing Chart.js instances
     Object.values(predChartInstances).forEach(c => c.destroy());
 
     try {
@@ -1343,12 +1245,14 @@ async function renderPredictionResults(weekKey) {
             const qSnap    = await db.collection('predictions').doc(weekKey).collection(q.id).get();
             const allProbs = [];
             qSnap.forEach(doc => allProbs.push(doc.data().probability));
+
             const userProb = userAnswers[idx];
             const mean     = allProbs.length > 0 ? Math.round(allProbs.reduce((a, b) => a + b, 0) / allProbs.length) : userProb;
             const diff     = userProb - mean;
             const diffSign = diff >= 0 ? '+' : '';
             const diffCls  = diff >= 0 ? 'pos' : 'neg';
             const count    = allProbs.length;
+
             return `
                 <div class="pred-result-card" style="animation-delay:${idx * 0.1}s">
                     <div class="pred-result-card-head">
@@ -1356,54 +1260,101 @@ async function renderPredictionResults(weekKey) {
                         <span class="pred-q-category">${q.category}</span>
                     </div>
                     <h3 class="pred-result-question">${q.text}</h3>
+
                     <div class="pred-result-stats">
-                        <div class="pred-stat"><div class="pred-stat-value user mono">${userProb}%</div><div class="pred-stat-label">Your Forecast</div></div>
+                        <div class="pred-stat">
+                            <div class="pred-stat-value user mono">${userProb}%</div>
+                            <div class="pred-stat-label">Your Forecast</div>
+                        </div>
                         <div class="pred-stat-divider"></div>
-                        <div class="pred-stat"><div class="pred-stat-value mono">${mean}%</div><div class="pred-stat-label">Crowd Mean</div></div>
+                        <div class="pred-stat">
+                            <div class="pred-stat-value mono">${mean}%</div>
+                            <div class="pred-stat-label">Crowd Mean</div>
+                        </div>
                         <div class="pred-stat-divider"></div>
-                        <div class="pred-stat"><div class="pred-stat-value ${diffCls} mono">${diffSign}${diff}%</div><div class="pred-stat-label">vs Crowd</div></div>
+                        <div class="pred-stat">
+                            <div class="pred-stat-value ${diffCls} mono">${diffSign}${diff}%</div>
+                            <div class="pred-stat-label">vs Crowd</div>
+                        </div>
                         <div class="pred-stat-divider"></div>
-                        <div class="pred-stat"><div class="pred-stat-value mono">${count}</div><div class="pred-stat-label">Participants</div></div>
+                        <div class="pred-stat">
+                            <div class="pred-stat-value mono">${count}</div>
+                            <div class="pred-stat-label">Participants</div>
+                        </div>
                     </div>
-                    <div class="pred-chart-wrap"><canvas id="chart_${q.id}" height="160"></canvas></div>
+
+                    <div class="pred-chart-wrap">
+                        <canvas id="chart_${q.id}" height="160"></canvas>
+                    </div>
                 </div>`;
         }));
+
         container.innerHTML = resultsHTML.join('');
+
+        // Render charts after DOM update
         setTimeout(() => {
-            PREDICTION_QUESTIONS.forEach((q, idx) => renderPredictionChart(q.id, weekKey, userAnswers[idx]));
+            PREDICTION_QUESTIONS.forEach((q, idx) => {
+                renderPredictionChart(q.id, weekKey, userAnswers[idx]);
+            });
         }, 120);
+
     } catch (err) {
         console.error('Error rendering results:', err);
         container.innerHTML = '<div class="pred-error">Error loading results. Try refreshing.</div>';
     }
 }
 
+// ===== CHART RENDER =====
 async function renderPredictionChart(questionId, weekKey, userProb) {
     const canvas = document.getElementById(`chart_${questionId}`);
     if (!canvas) return;
+
     const qSnap    = await db.collection('predictions').doc(weekKey).collection(questionId).get();
     const allProbs = [];
     qSnap.forEach(doc => allProbs.push(doc.data().probability));
+
+    // Build 5-bucket distribution
     const buckets      = { '0–20': 0, '21–40': 0, '41–60': 0, '61–80': 0, '81–100': 0 };
     const bucketKeys   = Object.keys(buckets);
     const userBucket   = getProbabilityBucket(userProb);
     allProbs.forEach(p => { buckets[getProbabilityBucket(p)]++; });
-    const bgColors     = bucketKeys.map(b => b === userBucket ? 'rgba(0,229,255,0.75)' : 'rgba(61,142,240,0.35)');
-    const borderColors = bucketKeys.map(b => b === userBucket ? '#00e5ff' : '#3d8ef0');
+
+    const bgColors     = bucketKeys.map(b =>
+        b === userBucket ? 'rgba(0,229,255,0.75)' : 'rgba(61,142,240,0.35)'
+    );
+    const borderColors = bucketKeys.map(b =>
+        b === userBucket ? '#00e5ff' : '#3d8ef0'
+    );
+
+    // Destroy previous instance if exists
     if (predChartInstances[questionId]) predChartInstances[questionId].destroy();
+
     predChartInstances[questionId] = new Chart(canvas, {
         type: 'bar',
         data: {
             labels: bucketKeys,
-            datasets: [{ label: 'Forecasters', data: Object.values(buckets), backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 6, borderSkipped: false }]
+            datasets: [{
+                label: 'Forecasters',
+                data: Object.values(buckets),
+                backgroundColor: bgColors,
+                borderColor: borderColors,
+                borderWidth: 2,
+                borderRadius: 6,
+                borderSkipped: false
+            }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#131d2e', titleColor: '#e8edf5', bodyColor: '#7b92b2',
-                    borderColor: '#1e2d47', borderWidth: 1, padding: 10,
+                    backgroundColor: '#131d2e',
+                    titleColor: '#e8edf5',
+                    bodyColor: '#7b92b2',
+                    borderColor: '#1e2d47',
+                    borderWidth: 1,
+                    padding: 10,
                     callbacks: {
                         title: (items) => `Probability range: ${items[0].label}%`,
                         label: (item)  => ` ${item.raw} forecaster${item.raw !== 1 ? 's' : ''}`
@@ -1411,17 +1362,36 @@ async function renderPredictionChart(questionId, weekKey, userProb) {
                 }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { color: '#3d5070', stepSize: 1, font: { family: "'JetBrains Mono', monospace", size: 11 } }, grid: { color: '#192336' } },
-                x: { ticks: { color: '#7b92b2', font: { size: 11 } }, grid: { display: false } }
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#3d5070', stepSize: 1, font: { family: "'JetBrains Mono', monospace", size: 11 } },
+                    grid:  { color: '#192336' }
+                },
+                x: {
+                    ticks: { color: '#7b92b2', font: { size: 11 } },
+                    grid:  { display: false }
+                }
             }
         }
     });
 }
 
+// ===== HELPERS =====
 function getProbabilityBucket(prob) {
     if (prob <= 20)  return '0–20';
     if (prob <= 40)  return '21–40';
     if (prob <= 60)  return '41–60';
     if (prob <= 80)  return '61–80';
     return '81–100';
+}
+
+function calculateMean(arr) {
+    if (!arr || arr.length === 0) return 0;
+    return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+}
+
+function calculateDistribution(arr) {
+    const d = { '0–20': 0, '21–40': 0, '41–60': 0, '61–80': 0, '81–100': 0 };
+    arr.forEach(p => { d[getProbabilityBucket(p)]++; });
+    return d;
 }
