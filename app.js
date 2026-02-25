@@ -1395,3 +1395,916 @@ function calculateDistribution(arr) {
     arr.forEach(p => { d[getProbabilityBucket(p)]++; });
     return d;
 }
+// ============================================================
+//  NOTES / LEARNING CENTER — Interactive Slideshow Education
+// ============================================================
+
+// ===== CHAPTER DATA =====
+const NOTES_CHAPTERS = [
+    {
+        id: 0,
+        title: "Stock Market Basics",
+        icon: "📈",
+        slides: [
+            {
+                title: "What is a Stock?",
+                subtitle: "Understanding Ownership",
+                content: `
+                    <div class="slide-content-split">
+                        <div class="slide-text-col">
+                            <p class="slide-lead">A stock represents <strong>partial ownership</strong> in a company.</p>
+                            <ul class="slide-bullet-list">
+                                <li><strong>Share:</strong> One unit of stock</li>
+                                <li><strong>Shareholder:</strong> You become a part-owner</li>
+                                <li><strong>Returns:</strong> Profit from price appreciation + dividends</li>
+                            </ul>
+                            <div class="slide-example-box">
+                                <div class="example-label">Example</div>
+                                <p>If Apple has 1 billion shares and you own 1,000 shares, you own 0.0001% of Apple.</p>
+                            </div>
+                        </div>
+                        <div class="slide-visual-col">
+                            <div class="stock-certificate-visual">
+                                <div class="certificate-header">Stock Certificate</div>
+                                <div class="certificate-body">
+                                    <div class="cert-company">ACME Corp.</div>
+                                    <div class="cert-shares">100 Shares</div>
+                                    <div class="cert-owner">Owned by: You</div>
+                                </div>
+                                <div class="certificate-seal">✓</div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                visual: "stock"
+            },
+            {
+                title: "How Stock Markets Work",
+                subtitle: "Buyers Meet Sellers",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Stock exchanges are <strong>marketplaces</strong> where buyers and sellers trade shares.</p>
+                        
+                        <div class="market-flow-visual">
+                            <div class="flow-step">
+                                <div class="flow-icon">🏢</div>
+                                <div class="flow-label">Company Lists</div>
+                                <p>IPO: Company goes public</p>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-step">
+                                <div class="flow-icon">📊</div>
+                                <div class="flow-label">Exchange Lists</div>
+                                <p>NSE, BSE, NYSE, NASDAQ</p>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-step">
+                                <div class="flow-icon">👥</div>
+                                <div class="flow-label">Traders Buy/Sell</div>
+                                <p>Price determined by demand</p>
+                            </div>
+                        </div>
+
+                        <div class="slide-key-points">
+                            <div class="key-point-card">
+                                <div class="kp-icon">⏰</div>
+                                <div class="kp-title">Trading Hours</div>
+                                <div class="kp-desc">NSE: 9:15 AM – 3:30 PM IST</div>
+                            </div>
+                            <div class="key-point-card">
+                                <div class="kp-icon">💰</div>
+                                <div class="kp-title">Price Discovery</div>
+                                <div class="kp-desc">Supply & demand set prices</div>
+                            </div>
+                            <div class="key-point-card">
+                                <div class="kp-icon">🔒</div>
+                                <div class="kp-title">Regulated</div>
+                                <div class="kp-desc">SEBI oversees Indian markets</div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                visual: "exchange"
+            },
+            {
+                title: "Understanding Candlesticks",
+                subtitle: "The Language of Price Action",
+                content: `
+                    <div class="slide-content-split">
+                        <div class="slide-text-col">
+                            <p class="slide-lead">Candlesticks show price movement over a time period.</p>
+                            
+                            <div class="candle-anatomy">
+                                <div class="anatomy-item">
+                                    <div class="anatomy-visual">
+                                        <div class="candle-demo bullish">
+                                            <div class="candle-wick-upper"></div>
+                                            <div class="candle-body"></div>
+                                            <div class="candle-wick-lower"></div>
+                                        </div>
+                                    </div>
+                                    <div class="anatomy-labels">
+                                        <div class="anatomy-label" style="top:0">← High</div>
+                                        <div class="anatomy-label" style="top:25%">← Open</div>
+                                        <div class="anatomy-label" style="top:75%">← Close</div>
+                                        <div class="anatomy-label" style="top:100%">← Low</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ul class="slide-bullet-list compact">
+                                <li><strong>Body:</strong> Open to close range</li>
+                                <li><strong>Wicks:</strong> High and low extremes</li>
+                                <li><strong>Color:</strong> Green (up) / Red (down)</li>
+                            </ul>
+                        </div>
+                        <div class="slide-visual-col">
+                            <div class="candlestick-comparison">
+                                <div class="candle-compare-item">
+                                    <div class="candle-demo bullish large">
+                                        <div class="candle-wick-upper"></div>
+                                        <div class="candle-body"></div>
+                                        <div class="candle-wick-lower"></div>
+                                    </div>
+                                    <div class="candle-label bullish-label">Bullish (Green)</div>
+                                    <div class="candle-desc">Close > Open<br>Buyers won</div>
+                                </div>
+                                <div class="candle-compare-item">
+                                    <div class="candle-demo bearish large">
+                                        <div class="candle-wick-upper"></div>
+                                        <div class="candle-body"></div>
+                                        <div class="candle-wick-lower"></div>
+                                    </div>
+                                    <div class="candle-label bearish-label">Bearish (Red)</div>
+                                    <div class="candle-desc">Close < Open<br>Sellers won</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                visual: "candlestick"
+            },
+            {
+                title: "Bullish vs Bearish Patterns",
+                subtitle: "Reading Market Sentiment",
+                content: `
+                    <div class="slide-content-full">
+                        <div class="pattern-showcase">
+                            <div class="pattern-section bullish-section">
+                                <h3 class="pattern-section-title bullish-title">🟢 Bullish Signals</h3>
+                                <div class="pattern-grid">
+                                    <div class="pattern-card">
+                                        <div class="pattern-visual">
+                                            <div class="candle-demo bullish medium"><div class="candle-wick-upper small"></div><div class="candle-body"></div><div class="candle-wick-lower large"></div></div>
+                                        </div>
+                                        <div class="pattern-name">Hammer</div>
+                                        <div class="pattern-meaning">Reversal at bottom</div>
+                                    </div>
+                                    <div class="pattern-card">
+                                        <div class="pattern-visual">
+                                            <div class="candle-demo bullish medium"><div class="candle-wick-upper tiny"></div><div class="candle-body tall"></div><div class="candle-wick-lower tiny"></div></div>
+                                        </div>
+                                        <div class="pattern-name">Marubozu</div>
+                                        <div class="pattern-meaning">Strong buying</div>
+                                    </div>
+                                    <div class="pattern-card">
+                                        <div class="pattern-visual multi-candle">
+                                            <div class="candle-demo bearish small"><div class="candle-body"></div></div>
+                                            <div class="candle-demo bullish medium"><div class="candle-body tall"></div></div>
+                                        </div>
+                                        <div class="pattern-name">Bullish Engulfing</div>
+                                        <div class="pattern-meaning">Momentum shift up</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pattern-section bearish-section">
+                                <h3 class="pattern-section-title bearish-title">🔴 Bearish Signals</h3>
+                                <div class="pattern-grid">
+                                    <div class="pattern-card">
+                                        <div class="pattern-visual">
+                                            <div class="candle-demo bearish medium"><div class="candle-wick-upper large"></div><div class="candle-body"></div><div class="candle-wick-lower small"></div></div>
+                                        </div>
+                                        <div class="pattern-name">Shooting Star</div>
+                                        <div class="pattern-meaning">Reversal at top</div>
+                                    </div>
+                                    <div class="pattern-card">
+                                        <div class="pattern-visual">
+                                            <div class="candle-demo bearish medium"><div class="candle-wick-upper tiny"></div><div class="candle-body tall"></div><div class="candle-wick-lower tiny"></div></div>
+                                        </div>
+                                        <div class="pattern-name">Marubozu</div>
+                                        <div class="pattern-meaning">Strong selling</div>
+                                    </div>
+                                    <div class="pattern-card">
+                                        <div class="pattern-visual multi-candle">
+                                            <div class="candle-demo bullish small"><div class="candle-body"></div></div>
+                                            <div class="candle-demo bearish medium"><div class="candle-body tall"></div></div>
+                                        </div>
+                                        <div class="pattern-name">Bearish Engulfing</div>
+                                        <div class="pattern-meaning">Momentum shift down</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                visual: "patterns"
+            },
+            {
+                title: "Reading Market Trends",
+                subtitle: "The Big Picture",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Trends show the <strong>direction</strong> markets are moving over time.</p>
+
+                        <div class="trend-showcase">
+                            <div class="trend-card uptrend-card">
+                                <div class="trend-visual">
+                                    <svg viewBox="0 0 200 120" class="trend-chart">
+                                        <polyline points="10,100 40,80 70,85 100,60 130,65 160,40 190,30" stroke="#00e676" stroke-width="3" fill="none"/>
+                                        <polyline points="10,100 40,80 70,85 100,60 130,65 160,40 190,30" stroke="#00e676" stroke-width="1" fill="url(#uptrend-grad)" opacity="0.2"/>
+                                        <defs>
+                                            <linearGradient id="uptrend-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#00e676;stop-opacity:0.3" />
+                                                <stop offset="100%" style="stop-color:#00e676;stop-opacity:0" />
+                                            </linearGradient>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <div class="trend-label uptrend-label">📈 Uptrend</div>
+                                <div class="trend-desc">Higher highs + higher lows</div>
+                                <div class="trend-action">→ Look for buying opportunities</div>
+                            </div>
+
+                            <div class="trend-card downtrend-card">
+                                <div class="trend-visual">
+                                    <svg viewBox="0 0 200 120" class="trend-chart">
+                                        <polyline points="10,30 40,50 70,45 100,70 130,68 160,85 190,95" stroke="#ff4560" stroke-width="3" fill="none"/>
+                                        <polyline points="10,30 40,50 70,45 100,70 130,68 160,85 190,95" stroke="#ff4560" stroke-width="1" fill="url(#downtrend-grad)" opacity="0.2"/>
+                                        <defs>
+                                            <linearGradient id="downtrend-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#ff4560;stop-opacity:0" />
+                                                <stop offset="100%" style="stop-color:#ff4560;stop-opacity:0.3" />
+                                            </linearGradient>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <div class="trend-label downtrend-label">📉 Downtrend</div>
+                                <div class="trend-desc">Lower highs + lower lows</div>
+                                <div class="trend-action">→ Wait or short opportunities</div>
+                            </div>
+
+                            <div class="trend-card sideways-card">
+                                <div class="trend-visual">
+                                    <svg viewBox="0 0 200 120" class="trend-chart">
+                                        <polyline points="10,60 40,65 70,55 100,62 130,58 160,63 190,60" stroke="#ffb800" stroke-width="3" fill="none"/>
+                                        <line x1="0" y1="70" x2="200" y2="70" stroke="#ffb800" stroke-width="1" stroke-dasharray="4,4" opacity="0.3"/>
+                                        <line x1="0" y1="50" x2="200" y2="50" stroke="#ffb800" stroke-width="1" stroke-dasharray="4,4" opacity="0.3"/>
+                                    </svg>
+                                </div>
+                                <div class="trend-label sideways-label">↔️ Sideways</div>
+                                <div class="trend-desc">Range-bound consolidation</div>
+                                <div class="trend-action">→ Trade the range</div>
+                            </div>
+                        </div>
+
+                        <div class="slide-tip-box">
+                            <strong>Pro Tip:</strong> "The trend is your friend" — trade with the prevailing trend for higher probability setups.
+                        </div>
+                    </div>
+                `,
+                visual: "trends"
+            },
+            {
+                title: "Risk & Reward",
+                subtitle: "Protecting Your Capital",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Smart trading is about <strong>managing risk</strong>, not just maximizing returns.</p>
+
+                        <div class="risk-reward-showcase">
+                            <div class="rr-visual-container">
+                                <div class="rr-chart">
+                                    <div class="rr-bar risk-bar">
+                                        <div class="rr-bar-fill" style="height:40%"></div>
+                                        <div class="rr-bar-label">Risk: ₹100</div>
+                                    </div>
+                                    <div class="rr-ratio-label">1:3 Ratio</div>
+                                    <div class="rr-bar reward-bar">
+                                        <div class="rr-bar-fill" style="height:100%"></div>
+                                        <div class="rr-bar-label">Reward: ₹300</div>
+                                    </div>
+                                </div>
+                                <div class="rr-explanation">
+                                    For every ₹100 you risk, aim for ₹300 potential profit
+                                </div>
+                            </div>
+
+                            <div class="risk-rules-grid">
+                                <div class="risk-rule-card">
+                                    <div class="rule-icon">🎯</div>
+                                    <div class="rule-title">Set Stop-Loss</div>
+                                    <div class="rule-desc">Exit point if trade goes wrong</div>
+                                </div>
+                                <div class="risk-rule-card">
+                                    <div class="rule-icon">💼</div>
+                                    <div class="rule-title">Position Sizing</div>
+                                    <div class="rule-desc">Risk only 1-2% per trade</div>
+                                </div>
+                                <div class="risk-rule-card">
+                                    <div class="rule-icon">📊</div>
+                                    <div class="rule-title">Diversify</div>
+                                    <div class="rule-desc">Don't put all eggs in one basket</div>
+                                </div>
+                                <div class="risk-rule-card">
+                                    <div class="rule-icon">🧠</div>
+                                    <div class="rule-title">Trade Plan</div>
+                                    <div class="rule-desc">Have entry, exit, and rules</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="slide-quote-box">
+                            <div class="quote-icon">"</div>
+                            <div class="quote-text">Rule #1: Never lose money. Rule #2: Never forget rule #1.</div>
+                            <div class="quote-author">— Warren Buffett</div>
+                        </div>
+                    </div>
+                `,
+                visual: "risk"
+            }
+        ]
+    },
+    {
+        id: 1,
+        title: "Technical Analysis Fundamentals",
+        icon: "🎯",
+        slides: [
+            {
+                title: "What is Technical Analysis?",
+                subtitle: "Reading the Chart",
+                content: `
+                    <div class="slide-content-split">
+                        <div class="slide-text-col">
+                            <p class="slide-lead">Technical Analysis studies <strong>price patterns</strong> and <strong>volume</strong> to forecast future movements.</p>
+                            
+                            <div class="ta-vs-fa">
+                                <div class="vs-column">
+                                    <div class="vs-header ta-header">Technical Analysis</div>
+                                    <ul class="vs-list">
+                                        <li>✓ Charts & patterns</li>
+                                        <li>✓ Price history</li>
+                                        <li>✓ Trading volume</li>
+                                        <li>✓ Short to medium term</li>
+                                    </ul>
+                                </div>
+                                <div class="vs-divider">vs</div>
+                                <div class="vs-column">
+                                    <div class="vs-header fa-header">Fundamental Analysis</div>
+                                    <ul class="vs-list">
+                                        <li>• Financial statements</li>
+                                        <li>• Company valuation</li>
+                                        <li>• Economic factors</li>
+                                        <li>• Long term investing</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="slide-callout-box">
+                                <strong>Key Assumption:</strong> All known information is already reflected in the price.
+                            </div>
+                        </div>
+                        <div class="slide-visual-col">
+                            <div class="ta-tools-showcase">
+                                <div class="ta-tool-item">
+                                    <div class="tool-icon">📊</div>
+                                    <div class="tool-name">Chart Patterns</div>
+                                </div>
+                                <div class="ta-tool-item">
+                                    <div class="tool-icon">📈</div>
+                                    <div class="tool-name">Trend Lines</div>
+                                </div>
+                                <div class="ta-tool-item">
+                                    <div class="tool-icon">📉</div>
+                                    <div class="tool-name">Indicators</div>
+                                </div>
+                                <div class="ta-tool-item">
+                                    <div class="tool-icon">🔊</div>
+                                    <div class="tool-name">Volume Analysis</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                visual: "technical"
+            },
+            {
+                title: "Support & Resistance",
+                subtitle: "Price Levels That Matter",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead"><strong>Support</strong> and <strong>Resistance</strong> are price levels where buying or selling pressure is strong.</p>
+
+                        <div class="sr-visual-main">
+                            <svg viewBox="0 0 400 250" class="sr-chart">
+                                <!-- Price line -->
+                                <polyline points="20,180 60,150 100,160 140,120 180,140 220,100 260,110 300,80 340,100 380,70" 
+                                         stroke="#00e5ff" stroke-width="2.5" fill="none"/>
+                                
+                                <!-- Resistance line -->
+                                <line x1="0" y1="70" x2="400" y2="70" stroke="#ff4560" stroke-width="2" stroke-dasharray="8,4"/>
+                                <text x="10" y="65" fill="#ff4560" font-size="12" font-weight="600">Resistance ₹520</text>
+                                
+                                <!-- Support line -->
+                                <line x1="0" y1="180" x2="400" y2="180" stroke="#00e676" stroke-width="2" stroke-dasharray="8,4"/>
+                                <text x="10" y="195" fill="#00e676" font-size="12" font-weight="600">Support ₹480</text>
+                                
+                                <!-- Touch points -->
+                                <circle cx="20" cy="180" r="4" fill="#00e676"/>
+                                <circle cx="100" cy="160" r="4" fill="#00e676"/>
+                                <circle cx="180" cy="140" r="4" fill="#00e676"/>
+                                <circle cx="300" cy="80" r="4" fill="#ff4560"/>
+                                <circle cx="340" cy="100" r="4" fill="#ff4560"/>
+                            </svg>
+                        </div>
+
+                        <div class="sr-explanation-grid">
+                            <div class="sr-explain-card support-card">
+                                <div class="sr-card-icon">🟢</div>
+                                <h4>Support</h4>
+                                <p><strong>Floor level</strong> where buying interest prevents further decline</p>
+                                <div class="sr-card-action">→ Potential buy zone</div>
+                            </div>
+                            <div class="sr-explain-card resistance-card">
+                                <div class="sr-card-icon">🔴</div>
+                                <h4>Resistance</h4>
+                                <p><strong>Ceiling level</strong> where selling pressure prevents further rise</p>
+                                <div class="sr-card-action">→ Potential sell zone</div>
+                            </div>
+                        </div>
+
+                        <div class="slide-insight-box">
+                            <strong>Key Insight:</strong> When resistance breaks → becomes new support. When support breaks → becomes new resistance.
+                        </div>
+                    </div>
+                `,
+                visual: "support-resistance"
+            },
+            {
+                title: "Trend Lines",
+                subtitle: "Drawing the Path",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Trend lines connect <strong>swing points</strong> to visualize the trend direction.</p>
+
+                        <div class="trendline-demo-container">
+                            <div class="trendline-demo uptrend-demo">
+                                <div class="demo-label">Uptrend Line</div>
+                                <svg viewBox="0 0 300 180" class="trendline-chart">
+                                    <polyline points="20,140 60,120 100,125 140,100 180,105 220,80 260,85" 
+                                             stroke="#00e5ff" stroke-width="2" fill="none"/>
+                                    <!-- Trend line connecting lows -->
+                                    <line x1="20" y1="140" x2="260" y2="85" stroke="#00e676" stroke-width="2.5" stroke-dasharray="6,3"/>
+                                    <circle cx="20" cy="140" r="5" fill="#00e676"/>
+                                    <circle cx="100" cy="125" r="5" fill="#00e676"/>
+                                    <circle cx="180" cy="105" r="5" fill="#00e676"/>
+                                    <circle cx="260" cy="85" r="5" fill="#00e676"/>
+                                </svg>
+                                <div class="demo-desc">Connect <strong>higher lows</strong></div>
+                            </div>
+
+                            <div class="trendline-demo downtrend-demo">
+                                <div class="demo-label">Downtrend Line</div>
+                                <svg viewBox="0 0 300 180" class="trendline-chart">
+                                    <polyline points="20,40 60,60 100,55 140,80 180,75 220,100 260,95" 
+                                             stroke="#00e5ff" stroke-width="2" fill="none"/>
+                                    <!-- Trend line connecting highs -->
+                                    <line x1="20" y1="40" x2="260" y2="95" stroke="#ff4560" stroke-width="2.5" stroke-dasharray="6,3"/>
+                                    <circle cx="20" cy="40" r="5" fill="#ff4560"/>
+                                    <circle cx="100" cy="55" r="5" fill="#ff4560"/>
+                                    <circle cx="180" cy="75" r="5" fill="#ff4560"/>
+                                    <circle cx="260" cy="95" r="5" fill="#ff4560"/>
+                                </svg>
+                                <div class="demo-desc">Connect <strong>lower highs</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="trendline-rules">
+                            <div class="rule-item">
+                                <div class="rule-num">1</div>
+                                <div class="rule-text">Need at least <strong>2 touch points</strong></div>
+                            </div>
+                            <div class="rule-item">
+                                <div class="rule-num">2</div>
+                                <div class="rule-text"><strong>3rd touch</strong> confirms the trend</div>
+                            </div>
+                            <div class="rule-item">
+                                <div class="rule-num">3</div>
+                                <div class="rule-text">Trendline <strong>break</strong> signals reversal</div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                visual: "trendlines"
+            },
+            {
+                title: "Volume Analysis",
+                subtitle: "Confirmation Tool",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Volume shows the <strong>strength</strong> behind price moves.</p>
+
+                        <div class="volume-principle-showcase">
+                            <div class="volume-principle">
+                                <div class="vp-icon">✅</div>
+                                <div class="vp-title">High Volume + Breakout</div>
+                                <div class="vp-visual">
+                                    <svg viewBox="0 0 200 100" style="width:100%;height:80px">
+                                        <rect x="10" y="60" width="15" height="40" fill="#00e67680"/>
+                                        <rect x="35" y="50" width="15" height="50" fill="#00e67680"/>
+                                        <rect x="60" y="70" width="15" height="30" fill="#00e67680"/>
+                                        <rect x="85" y="30" width="15" height="70" fill="#00e676"/>
+                                        <rect x="110" y="20" width="15" height="80" fill="#00e676"/>
+                                        <rect x="135" y="25" width="15" height="75" fill="#00e676"/>
+                                        <rect x="160" y="40" width="15" height="60" fill="#00e67680"/>
+                                    </svg>
+                                </div>
+                                <div class="vp-verdict valid">= Strong move, likely to continue</div>
+                            </div>
+
+                            <div class="volume-principle">
+                                <div class="vp-icon">❌</div>
+                                <div class="vp-title">Low Volume + Breakout</div>
+                                <div class="vp-visual">
+                                    <svg viewBox="0 0 200 100" style="width:100%;height:80px">
+                                        <rect x="10" y="60" width="15" height="40" fill="#ff456080"/>
+                                        <rect x="35" y="50" width="15" height="50" fill="#ff456080"/>
+                                        <rect x="60" y="70" width="15" height="30" fill="#ff456080"/>
+                                        <rect x="85" y="75" width="15" height="25" fill="#ff4560"/>
+                                        <rect x="110" y="80" width="15" height="20" fill="#ff4560"/>
+                                        <rect x="135" y="78" width="15" height="22" fill="#ff4560"/>
+                                        <rect x="160" y="82" width="15" height="18" fill="#ff456080"/>
+                                    </svg>
+                                </div>
+                                <div class="vp-verdict invalid">= Weak move, likely false breakout</div>
+                            </div>
+                        </div>
+
+                        <div class="volume-guidelines-grid">
+                            <div class="volume-guideline">
+                                <div class="vg-icon">📊</div>
+                                <div class="vg-text"><strong>Rising prices + rising volume</strong> = Healthy uptrend</div>
+                            </div>
+                            <div class="volume-guideline">
+                                <div class="vg-icon">📉</div>
+                                <div class="vg-text"><strong>Falling prices + rising volume</strong> = Strong selling pressure</div>
+                            </div>
+                            <div class="volume-guideline">
+                                <div class="vg-icon">⚠️</div>
+                                <div class="vg-text"><strong>Price move + low volume</strong> = Weak move, may reverse</div>
+                            </div>
+                        </div>
+
+                        <div class="slide-remember-box">
+                            <strong>Remember:</strong> Volume is the fuel. Price is the rocket. You need both.
+                        </div>
+                    </div>
+                `,
+                visual: "volume"
+            },
+            {
+                title: "Common Chart Patterns",
+                subtitle: "Recognizing Setups",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Patterns repeat because <strong>human psychology</strong> repeats.</p>
+
+                        <div class="patterns-showcase-grid">
+                            <div class="pattern-showcase-card">
+                                <div class="pattern-type-label reversal-label">Reversal</div>
+                                <div class="pattern-name-big">Head & Shoulders</div>
+                                <svg viewBox="0 0 200 100" class="pattern-chart-svg">
+                                    <polyline points="20,80 40,50 60,60 80,20 100,60 120,50 140,80" stroke="#00e5ff" stroke-width="2" fill="none"/>
+                                    <line x1="20" y1="80" x2="140" y2="80" stroke="#ff4560" stroke-width="1.5" stroke-dasharray="4,2"/>
+                                    <text x="30" y="45" fill="#7b92b2" font-size="9">L</text>
+                                    <text x="75" y="15" fill="#7b92b2" font-size="9">Head</text>
+                                    <text x="115" y="45" fill="#7b92b2" font-size="9">R</text>
+                                </svg>
+                                <div class="pattern-signal">→ Bearish reversal signal</div>
+                            </div>
+
+                            <div class="pattern-showcase-card">
+                                <div class="pattern-type-label continuation-label">Continuation</div>
+                                <div class="pattern-name-big">Bull Flag</div>
+                                <svg viewBox="0 0 200 100" class="pattern-chart-svg">
+                                    <polyline points="20,90 60,20" stroke="#00e5ff" stroke-width="2.5" fill="none"/>
+                                    <polyline points="60,20 80,35 100,30 120,40 140,35" stroke="#00e5ff" stroke-width="2" fill="none"/>
+                                    <polyline points="140,35 180,10" stroke="#00e5ff" stroke-width="2.5" stroke-dasharray="4,2" fill="none"/>
+                                    <text x="25" y="60" fill="#00e676" font-size="10" font-weight="600">Pole</text>
+                                    <text x="85" y="50" fill="#ffb800" font-size="10" font-weight="600">Flag</text>
+                                </svg>
+                                <div class="pattern-signal">→ Continuation of uptrend</div>
+                            </div>
+
+                            <div class="pattern-showcase-card">
+                                <div class="pattern-type-label breakout-label">Breakout</div>
+                                <div class="pattern-name-big">Triangle</div>
+                                <svg viewBox="0 0 200 100" class="pattern-chart-svg">
+                                    <line x1="20" y1="70" x2="140" y2="45" stroke="#ff4560" stroke-width="1.5" stroke-dasharray="3,2"/>
+                                    <line x1="20" y1="30" x2="140" y2="45" stroke="#00e676" stroke-width="1.5" stroke-dasharray="3,2"/>
+                                    <polyline points="20,70 40,50 60,60 80,45 100,50 120,45 140,45" stroke="#00e5ff" stroke-width="2" fill="none"/>
+                                    <polyline points="140,45 180,20" stroke="#00e5ff" stroke-width="2.5" stroke-dasharray="4,2" fill="none"/>
+                                </svg>
+                                <div class="pattern-signal">→ Breakout direction signal</div>
+                            </div>
+
+                            <div class="pattern-showcase-card">
+                                <div class="pattern-type-label reversal-label">Reversal</div>
+                                <div class="pattern-name-big">Double Bottom</div>
+                                <svg viewBox="0 0 200 100" class="pattern-chart-svg">
+                                    <polyline points="20,40 50,80 80,50 110,80 140,40" stroke="#00e5ff" stroke-width="2" fill="none"/>
+                                    <line x1="30" y1="50" x2="130" y2="50" stroke="#00e676" stroke-width="1.5" stroke-dasharray="3,2"/>
+                                    <circle cx="50" cy="80" r="4" fill="#00e676"/>
+                                    <circle cx="110" cy="80" r="4" fill="#00e676"/>
+                                    <polyline points="140,40 180,20" stroke="#00e5ff" stroke-width="2.5" stroke-dasharray="4,2" fill="none"/>
+                                </svg>
+                                <div class="pattern-signal">→ Bullish reversal signal</div>
+                            </div>
+                        </div>
+
+                        <div class="slide-practice-tip">
+                            💡 <strong>Practice Tip:</strong> Spend time identifying these patterns on real charts. Pattern recognition improves with experience.
+                        </div>
+                    </div>
+                `,
+                visual: "chart-patterns"
+            },
+            {
+                title: "Putting It All Together",
+                subtitle: "Your Analysis Checklist",
+                content: `
+                    <div class="slide-content-full">
+                        <p class="slide-lead">Combine multiple signals for <strong>higher-probability</strong> trades.</p>
+
+                        <div class="analysis-checklist">
+                            <div class="checklist-section">
+                                <div class="checklist-header">📋 Pre-Trade Checklist</div>
+                                <div class="checklist-items">
+                                    <div class="checklist-item">
+                                        <div class="check-box">1</div>
+                                        <div class="check-text"><strong>Identify the trend</strong> — Are we in uptrend, downtrend, or sideways?</div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <div class="check-box">2</div>
+                                        <div class="check-text"><strong>Mark support/resistance</strong> — Where are key price levels?</div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <div class="check-box">3</div>
+                                        <div class="check-text"><strong>Check volume</strong> — Is there enough participation?</div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <div class="check-box">4</div>
+                                        <div class="check-text"><strong>Look for patterns</strong> — Any recognizable setups forming?</div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <div class="check-box">5</div>
+                                        <div class="check-text"><strong>Plan entry & exit</strong> — Where to buy, sell, and stop-loss?</div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <div class="check-box">6</div>
+                                        <div class="check-text"><strong>Calculate risk/reward</strong> — Is it worth the risk?</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="confluence-visual">
+                            <div class="confluence-title">🎯 Confluence = Multiple Signals Aligning</div>
+                            <div class="confluence-example">
+                                <div class="conf-signal">Uptrend ✓</div>
+                                <div class="conf-plus">+</div>
+                                <div class="conf-signal">Bouncing off support ✓</div>
+                                <div class="conf-plus">+</div>
+                                <div class="conf-signal">High volume ✓</div>
+                                <div class="conf-plus">+</div>
+                                <div class="conf-signal">Bullish pattern ✓</div>
+                                <div class="conf-result">= HIGH PROBABILITY SETUP</div>
+                            </div>
+                        </div>
+
+                        <div class="slide-final-wisdom">
+                            <div class="wisdom-icon">🎓</div>
+                            <div class="wisdom-text">
+                                <div class="wisdom-title">Final Wisdom</div>
+                                <p>Technical analysis is a <strong>skill</strong>, not magic. It takes practice, discipline, and continuous learning. Start small, learn from every trade, and build your edge over time.</p>
+                            </div>
+                        </div>
+
+                        <div class="completion-badge">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            <div class="completion-text">Chapter Complete!</div>
+                        </div>
+                    </div>
+                `,
+                visual: "checklist"
+            }
+        ]
+    }
+];
+
+// ===== STATE =====
+let currentNotes = {
+    chapterIndex: null,
+    slideIndex: 0,
+    progress: JSON.parse(localStorage.getItem('miq_notes_progress') || '{}')
+    // progress format: { "0": [1,1,1,0,0,0], "1": [1,0,0,0,0,0] }
+};
+
+// ===== SHOW/HIDE =====
+function showSection(name) {
+    // ... existing showSection code ...
+    
+    // Add notes handling
+    if (name === 'notes') { loadNotesLanding(); }
+    
+    // ... rest of existing code ...
+}
+
+// ===== LOAD NOTES LANDING =====
+function loadNotesLanding() {
+    if (!currentUser) { showSection('login'); return; }
+    
+    // Show chapters view, hide slideshow
+    document.getElementById('notesChaptersView').style.display = 'block';
+    document.getElementById('notesSlideshowView').style.display = 'none';
+    
+    // Update progress badges
+    updateNotesProgress();
+}
+
+// ===== UPDATE PROGRESS =====
+function updateNotesProgress() {
+    const progress = currentNotes.progress;
+    
+    // Update each chapter progress badge
+    NOTES_CHAPTERS.forEach((chapter, chIdx) => {
+        const badge = document.getElementById(`ch${chIdx}-progress`);
+        if (!badge) return;
+        
+        const chapterProgress = progress[chIdx] || [];
+        const completed = chapterProgress.filter(v => v === 1).length;
+        const total = chapter.slides.length;
+        
+        badge.textContent = `${completed} / ${total}`;
+        
+        if (completed === total) {
+            badge.classList.add('completed');
+        }
+    });
+    
+    // Update global progress chip
+    const totalSlides = NOTES_CHAPTERS.reduce((sum, ch) => sum + ch.slides.length, 0);
+    let totalCompleted = 0;
+    Object.values(progress).forEach(chProgress => {
+        totalCompleted += chProgress.filter(v => v === 1).length;
+    });
+    
+    const chip = document.getElementById('notesProgressChip');
+    const text = document.getElementById('notesProgressText');
+    if (totalCompleted > 0 && chip) chip.style.display = 'flex';
+    if (text) text.textContent = `${totalCompleted} / ${totalSlides} lessons completed`;
+}
+
+// ===== OPEN CHAPTER =====
+function openChapter(chapterIndex) {
+    currentNotes.chapterIndex = chapterIndex;
+    currentNotes.slideIndex = 0;
+    
+    const chapter = NOTES_CHAPTERS[chapterIndex];
+    
+    // Hide chapters, show slideshow
+    document.getElementById('notesChaptersView').style.display = 'none';
+    document.getElementById('notesSlideshowView').style.display = 'block';
+    
+    // Render slides
+    renderSlides(chapter);
+    
+    // Update slide counter
+    document.getElementById('notesTotalSlides').textContent = chapter.slides.length;
+    updateSlidePosition();
+}
+
+// ===== RENDER SLIDES =====
+function renderSlides(chapter) {
+    const track = document.getElementById('notesSlideTrack');
+    const dotsNav = document.getElementById('notesDotsNav');
+    
+    // Render slides
+    track.innerHTML = chapter.slides.map((slide, idx) => `
+        <div class="notes-slide" data-slide="${idx}">
+            <div class="slide-content-inner">
+                <div class="slide-header">
+                    <div class="slide-chapter-badge">${chapter.title}</div>
+                    <h2 class="slide-title">${slide.title}</h2>
+                    <p class="slide-subtitle">${slide.subtitle}</p>
+                </div>
+                <div class="slide-body">
+                    ${slide.content}
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // Render dots
+    dotsNav.innerHTML = chapter.slides.map((_, idx) => `
+        <button class="notes-dot ${idx === 0 ? 'active' : ''}" onclick="goToSlide(${idx})" aria-label="Go to slide ${idx + 1}"></button>
+    `).join('');
+}
+
+// ===== NAVIGATION =====
+function nextSlide() {
+    const chapter = NOTES_CHAPTERS[currentNotes.chapterIndex];
+    if (currentNotes.slideIndex < chapter.slides.length - 1) {
+        // Mark current as completed
+        markSlideCompleted();
+        
+        currentNotes.slideIndex++;
+        updateSlidePosition();
+    } else {
+        // Last slide — mark completed and return to chapters
+        markSlideCompleted();
+        closeSlideshow();
+        showToast(`✅ ${chapter.title} completed!`, 'success');
+    }
+}
+
+function prevSlide() {
+    if (currentNotes.slideIndex > 0) {
+        currentNotes.slideIndex--;
+        updateSlidePosition();
+    }
+}
+
+function goToSlide(index) {
+    currentNotes.slideIndex = index;
+    updateSlidePosition();
+}
+
+function updateSlidePosition() {
+    const track = document.getElementById('notesSlideTrack');
+    const slides = track.querySelectorAll('.notes-slide');
+    const chapter = NOTES_CHAPTERS[currentNotes.chapterIndex];
+    
+    // Slide animation
+    const offset = -currentNotes.slideIndex * 100;
+    track.style.transform = `translateX(${offset}%)`;
+    
+    // Update active states
+    slides.forEach((slide, idx) => {
+        slide.classList.toggle('active', idx === currentNotes.slideIndex);
+    });
+    
+    // Update dots
+    document.querySelectorAll('.notes-dot').forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentNotes.slideIndex);
+    });
+    
+    // Update counter
+    document.getElementById('notesCurrentSlide').textContent = currentNotes.slideIndex + 1;
+    
+    // Update buttons
+    const prevBtn = document.getElementById('notesPrevBtn');
+    const nextBtn = document.getElementById('notesNextBtn');
+    
+    prevBtn.disabled = currentNotes.slideIndex === 0;
+    
+    if (currentNotes.slideIndex === chapter.slides.length - 1) {
+        nextBtn.innerHTML = `Complete Chapter <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+    } else {
+        nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 18 15 12 9 6"/></svg>`;
+    }
+}
+
+// ===== MARK COMPLETED =====
+function markSlideCompleted() {
+    const chIdx = currentNotes.chapterIndex;
+    const slideIdx = currentNotes.slideIndex;
+    
+    if (!currentNotes.progress[chIdx]) {
+        currentNotes.progress[chIdx] = new Array(NOTES_CHAPTERS[chIdx].slides.length).fill(0);
+    }
+    
+    currentNotes.progress[chIdx][slideIdx] = 1;
+    
+    // Save to localStorage
+    localStorage.setItem('miq_notes_progress', JSON.stringify(currentNotes.progress));
+    
+    updateNotesProgress();
+}
+
+// ===== CLOSE SLIDESHOW =====
+function closeSlideshow() {
+    document.getElementById('notesChaptersView').style.display = 'block';
+    document.getElementById('notesSlideshowView').style.display = 'none';
+    updateNotesProgress();
+}
