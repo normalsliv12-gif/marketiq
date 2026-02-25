@@ -391,6 +391,118 @@
             </div>
         </div>
     </section>
+    <!-- ==================== NOTES (LEARNING CENTER) ==================== -->
+<section id="notesSection" class="section">
+    <div class="container">
+        <div class="section-top-row">
+            <div>
+                <h1>Learning Center</h1>
+                <p class="section-sub">Interactive lessons · Professional market education</p>
+            </div>
+            <div class="notes-progress-chip" id="notesProgressChip" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span id="notesProgressText">0 / 12 lessons completed</span>
+            </div>
+        </div>
+
+        <!-- CHAPTER SELECTION VIEW -->
+        <div id="notesChaptersView">
+            <div class="notes-intro-card">
+                <div class="notes-intro-icon">📚</div>
+                <h2>Master Market Intelligence</h2>
+                <p>Learn the fundamentals of stock market analysis through interactive lessons. Each chapter contains professionally designed slides with real examples.</p>
+            </div>
+
+            <div class="notes-chapters-grid">
+                <!-- Chapter 1: Stock Market Basics -->
+                <div class="notes-chapter-card" onclick="openChapter(0)">
+                    <div class="notes-chapter-number">Chapter 1</div>
+                    <div class="notes-chapter-icon">📈</div>
+                    <h3>Stock Market Basics</h3>
+                    <p>Understanding stocks, markets, candlesticks, and fundamental concepts</p>
+                    <div class="notes-chapter-meta">
+                        <span class="notes-meta-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            12 min
+                        </span>
+                        <span class="notes-meta-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                            6 slides
+                        </span>
+                        <span class="notes-meta-item notes-progress-badge" id="ch0-progress">
+                            0 / 6
+                        </span>
+                    </div>
+                    <button class="notes-start-btn">
+                        Start Learning
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+
+                <!-- Chapter 2: Technical Analysis -->
+                <div class="notes-chapter-card" onclick="openChapter(1)">
+                    <div class="notes-chapter-number">Chapter 2</div>
+                    <div class="notes-chapter-icon">🎯</div>
+                    <h3>Technical Analysis Fundamentals</h3>
+                    <p>Support, resistance, trends, volume, and pattern recognition</p>
+                    <div class="notes-chapter-meta">
+                        <span class="notes-meta-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            15 min
+                        </span>
+                        <span class="notes-meta-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                            6 slides
+                        </span>
+                        <span class="notes-meta-item notes-progress-badge" id="ch1-progress">
+                            0 / 6
+                        </span>
+                    </div>
+                    <button class="notes-start-btn">
+                        Start Learning
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDESHOW VIEWER -->
+        <div id="notesSlideshowView" style="display:none">
+            <div class="notes-viewer-header">
+                <button class="notes-back-btn" onclick="closeSlideshow()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back to Chapters
+                </button>
+                <div class="notes-slide-progress">
+                    <span id="notesCurrentSlide">1</span> / <span id="notesTotalSlides">6</span>
+                </div>
+            </div>
+
+            <div class="notes-slide-container">
+                <div class="notes-slide-track" id="notesSlideTrack">
+                    <!-- Slides injected by JS -->
+                </div>
+            </div>
+
+            <div class="notes-viewer-controls">
+                <button class="notes-nav-btn notes-prev-btn" id="notesPrevBtn" onclick="prevSlide()" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+                    Previous
+                </button>
+                <div class="notes-dots-nav" id="notesDotsNav">
+                    <!-- Dots injected by JS -->
+                </div>
+                <button class="notes-nav-btn notes-next-btn" id="notesNextBtn" onclick="nextSlide()">
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
     <!-- ==================== PREDICTIONS ==================== -->
     <section id="predictionsSection" class="section">
         <div class="container">
@@ -509,6 +621,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
