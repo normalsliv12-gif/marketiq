@@ -1657,192 +1657,152 @@ const CHAPTERS = {
         ]
     },
     technical: {
-    title: 'Technical Analysis Basics',
-    slides: [
-        {
-            title: 'What is Technical Analysis?',
-            subtitle: 'Reading price action to forecast future movements',
-            content: `<div class="slide-text-content">
-                <p><strong>Technical Analysis (TA)</strong> is the study of past price and volume data to predict future price movement.</p>
-                <p><strong>Core Belief:</strong> All information is reflected in price. Chart patterns repeat because human psychology is consistent.</p>
-                <p><strong>vs Fundamental Analysis:</strong> TA focuses on charts, not company earnings.</p>
-            </div>`,
-            visual: `<div class="slide-visual-ta-intro">
-                <svg viewBox="0 0 200 120" class="ta-svg">
-                    <polyline points="10,90 30,80 50,85 70,65 90,70 110,50 130,55 150,40 170,45 190,30" fill="none" stroke="var(--cyan)" stroke-width="3.5" class="price-line"/>
-                    <circle cx="110" cy="50" r="7" fill="var(--green)" class="signal-point" style="animation-delay:0.5s"/>
-                    <circle cx="150" cy="40" r="7" fill="var(--red)" class="signal-point" style="animation-delay:0.7s"/>
-                    <text x="100" y="110" fill="var(--text-2)" font-size="11" font-family="var(--font-body)" text-anchor="middle">Price over time</text>
-                </svg>
-                <p class="slide-caption">Charts tell stories of market psychology</p>
-            </div>`
-        },
-        {
-            title: 'Support & Resistance',
-            subtitle: 'Where price tends to bounce or reverse',
-            content: `<div class="slide-text-content">
-                <p><strong>Support:</strong> Price level where buying interest is strong enough to prevent further decline 🟢</p>
-                <p><strong>Resistance:</strong> Price level where selling pressure prevents further rise 🔴</p>
-                <p><strong>Why it matters:</strong> These are critical decision points—buy near support, sell near resistance.</p>
-            </div>`,
-            visual: `<div class="slide-visual-sr">
-                <svg viewBox="0 0 200 140" class="sr-svg">
-                    <defs>
-                        <linearGradient id="resistanceGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:var(--red);stop-opacity:0.3" />
-                            <stop offset="50%" style="stop-color:var(--red);stop-opacity:0.8" />
-                            <stop offset="100%" style="stop-color:var(--red);stop-opacity:0.3" />
-                        </linearGradient>
-                        <linearGradient id="supportGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:var(--green);stop-opacity:0.3" />
-                            <stop offset="50%" style="stop-color:var(--green);stop-opacity:0.8" />
-                            <stop offset="100%" style="stop-color:var(--green);stop-opacity:0.3" />
-                        </linearGradient>
-                    </defs>
-                    <line x1="10" y1="35" x2="190" y2="35" stroke="url(#resistanceGrad)" stroke-width="3" class="resistance-line"/>
-                    <text x="195" y="40" fill="var(--red)" font-size="12" font-weight="700" font-family="var(--font-body)">Resistance</text>
-                    <polyline points="20,105 40,85 60,95 80,65 100,80 120,55 140,70 160,50 180,65" fill="none" stroke="var(--cyan)" stroke-width="3.5" class="price-line"/>
-                    <line x1="10" y1="105" x2="190" y2="105" stroke="url(#supportGrad)" stroke-width="3" class="support-line"/>
-                    <text x="195" y="110" fill="var(--green)" font-size="12" font-weight="700" font-family="var(--font-body)">Support</text>
-                </svg>
-            </div>`
-        },
-        {
-            title: 'Trend Lines',
-            subtitle: 'Directional bias of the market',
-            content: `<div class="slide-text-content">
-                <p><strong>Uptrend:</strong> Series of higher highs and higher lows (bullish) 📈</p>
-                <p><strong>Downtrend:</strong> Series of lower highs and lower lows (bearish) 📉</p>
-                <p><strong>Sideways:</strong> Consolidation, no clear direction ↔️</p>
-                <p><strong>Rule:</strong> Trade with the trend until it clearly reverses.</p>
-            </div>`,
-            visual: `<div class="slide-visual-trends">
-                <svg viewBox="0 0 200 120" class="trends-svg">
-                    <defs>
-                        <linearGradient id="trendGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:var(--green);stop-opacity:0.6" />
-                            <stop offset="100%" style="stop-color:var(--green);stop-opacity:1" />
-                        </linearGradient>
-                    </defs>
-                    <line x1="15" y1="100" x2="165" y2="50" stroke="url(#trendGrad)" stroke-width="2.5" stroke-dasharray="5,5" opacity="0.7" class="trend-line"/>
-                    <polyline points="15,100 45,80 75,85 105,60 135,65 165,40" fill="none" stroke="var(--green)" stroke-width="3.5" class="price-line"/>
-                    <circle cx="45" cy="80" r="4" fill="var(--green)" opacity="0.6"/>
-                    <circle cx="105" cy="60" r="4" fill="var(--green)" opacity="0.6"/>
-                    <circle cx="165" cy="40" r="4" fill="var(--green)" opacity="0.6"/>
-                    <text x="15" y="25" fill="var(--green)" font-size="14" font-weight="700" font-family="var(--font-head)">Uptrend</text>
-                    <text x="15" y="42" fill="var(--text-3)" font-size="10" font-family="var(--font-body)">Higher Highs + Higher Lows</text>
-                </svg>
-            </div>`
-        },
-        {
-            title: 'Chart Patterns',
-            subtitle: 'Recognizable formations that signal moves',
-            content: `<div class="slide-text-content">
-                <p><strong>Reversal Patterns:</strong></p>
-                <ul class="slide-list">
-                    <li>Head & Shoulders (bearish reversal)</li>
-                    <li>Double Top/Bottom (trend exhaustion)</li>
-                </ul>
-                <p><strong>Continuation Patterns:</strong></p>
-                <ul class="slide-list">
-                    <li>Flags & Pennants (brief pause)</li>
-                    <li>Triangles (consolidation before breakout)</li>
-                </ul>
-            </div>`,
-            visual: `<div class="slide-visual-patterns">
-                <svg viewBox="0 0 200 120" class="patterns-svg">
-                    <defs>
-                        <linearGradient id="patternGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:var(--cyan);stop-opacity:0.5" />
-                            <stop offset="40%" style="stop-color:var(--cyan);stop-opacity:1" />
-                            <stop offset="60%" style="stop-color:var(--cyan);stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:var(--cyan);stop-opacity:0.5" />
-                        </linearGradient>
-                    </defs>
-                    <polyline points="20,80 40,60 60,65 80,40 100,65 120,60 140,80" fill="none" stroke="url(#patternGrad)" stroke-width="3.5" class="price-line"/>
-                    <circle cx="40" cy="60" r="5" fill="var(--blue)" opacity="0.7" class="signal-point" style="animation-delay:0.3s"/>
-                    <circle cx="80" cy="40" r="6" fill="var(--red)" opacity="0.8" class="signal-point" style="animation-delay:0.5s"/>
-                    <circle cx="120" cy="60" r="5" fill="var(--blue)" opacity="0.7" class="signal-point" style="animation-delay:0.7s"/>
-                    <text x="70" y="110" fill="var(--text-2)" font-size="11" font-family="var(--font-body)" text-anchor="middle">Head & Shoulders</text>
-                    <text x="80" y="28" fill="var(--red)" font-size="11" font-weight="700" font-family="var(--font-body)">HEAD</text>
-                    <line x1="30" y1="72" x2="130" y2="72" stroke="var(--border-bright)" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>
-                </svg>
-            </div>`
-        },
-        {
-            title: 'Moving Averages',
-            subtitle: 'Smoothing price data to identify trends',
-            content: `<div class="slide-text-content">
-                <p><strong>Simple Moving Average (SMA):</strong> Average price over N periods</p>
-                <p><strong>Common periods:</strong> 20-day (short-term), 50-day (medium), 200-day (long-term)</p>
-                <p><strong>Golden Cross:</strong> 50-day crosses above 200-day (bullish signal) 🟢</p>
-                <p><strong>Death Cross:</strong> 50-day crosses below 200-day (bearish signal) 🔴</p>
-            </div>`,
-            visual: `<div class="slide-visual-ma">
-                <svg viewBox="0 0 200 120" class="ma-svg">
-                    <defs>
-                        <linearGradient id="maGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:var(--cyan);stop-opacity:0.6" />
-                            <stop offset="100%" style="stop-color:var(--cyan);stop-opacity:1" />
-                        </linearGradient>
-                    </defs>
-                    <polyline points="10,70 30,65 50,75 70,60 90,65 110,55 130,60 150,50 170,55 190,45" fill="none" stroke="var(--text-3)" stroke-width="2" opacity="0.3" class="raw-price"/>
-                    <polyline points="10,72 30,68 50,70 70,64 90,62 110,58 130,56 150,53 170,51 190,48" fill="none" stroke="url(#maGrad)" stroke-width="3" class="ma-line"/>
-                    <circle cx="110" cy="58" r="5" fill="var(--cyan)" opacity="0.8" class="signal-point" style="animation-delay:0.5s"/>
-                    <text x="15" y="25" fill="var(--cyan)" font-size="12" font-weight="700" font-family="var(--font-body)">Moving Average</text>
-                    <text x="15" y="40" fill="var(--text-3)" font-size="10" font-family="var(--font-body)">Smooths price noise</text>
-                </svg>
-            </div>`
-        },
-        {
-            title: 'Volume Analysis',
-            subtitle: 'Confirmation through trading activity',
-            content: `<div class="slide-text-content">
-                <p><strong>Volume</strong> measures the number of shares traded. It confirms the strength of a move.</p>
-                <p><strong>Rule:</strong> Breakouts with high volume are more reliable than low-volume breakouts.</p>
-                <p><strong>Divergence:</strong> Price rising but volume falling = weak move (potential reversal)</p>
-            </div>`,
-            visual: `<div class="slide-visual-volume">
-                <svg viewBox="0 0 200 120" class="volume-svg">
-                    <rect x="20" y="70" width="18" height="40" fill="var(--green)" opacity="0.6" rx="2" class="volume-bar"/>
-                    <rect x="48" y="60" width="18" height="50" fill="var(--green)" opacity="0.7" rx="2" class="volume-bar" style="animation-delay:0.1s"/>
-                    <rect x="76" y="50" width="18" height="60" fill="var(--green)" opacity="0.8" rx="2" class="volume-bar" style="animation-delay:0.2s"/>
-                    <rect x="104" y="40" width="18" height="70" fill="var(--green)" rx="2" class="volume-bar" style="animation-delay:0.3s"/>
-                    <rect x="132" y="55" width="18" height="55" fill="var(--green)" opacity="0.7" rx="2" class="volume-bar" style="animation-delay:0.4s"/>
-                    <text x="85" y="25" fill="var(--text-1)" font-size="13" font-weight="700" font-family="var(--font-head)" text-anchor="middle">Volume Bars</text>
-                    <line x1="10" y1="110" x2="190" y2="110" stroke="var(--border-bright)" stroke-width="2"/>
-                </svg>
-                <p class="slide-caption">Volume confirms price moves</p>
-            </div>`
-        },
-        {
-            title: 'Key Takeaways',
-            subtitle: 'Technical Analysis Summary',
-            content: `<div class="slide-text-content">
-                <p><strong>You now understand:</strong></p>
-                <ul class="slide-list">
-                    <li>✅ TA studies price action, not fundamentals</li>
-                    <li>✅ Support & Resistance guide entries/exits</li>
-                    <li>✅ Trends define directional bias</li>
-                    <li>✅ Chart patterns signal future moves</li>
-                    <li>✅ Moving Averages smooth trends</li>
-                    <li>✅ Volume confirms price strength</li>
-                </ul>
-                <p><strong>Practice:</strong> Apply these concepts to real charts in MarketIQ puzzles! 🚀</p>
-            </div>`,
-            visual: `<div class="slide-visual-complete">
-                <div class="complete-icon-box">
-                    <svg viewBox="0 0 120 120" class="complete-svg">
-                        <circle cx="60" cy="60" r="50" fill="var(--green-dim)" stroke="var(--green)" stroke-width="4" class="complete-circle"/>
-                        <polyline points="35 60, 52 77, 85 44" fill="none" stroke="var(--green)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" class="complete-check"/>
+        title: 'Technical Analysis Basics',
+        slides: [
+            {
+                title: 'What is Technical Analysis?',
+                subtitle: 'Reading price action to forecast future movements',
+                content: `<div class="slide-text-content">
+                    <p><strong>Technical Analysis (TA)</strong> is the study of past price and volume data to predict future price movement.</p>
+                    <p><strong>Core Belief:</strong> All information is reflected in price. Chart patterns repeat because human psychology is consistent.</p>
+                    <p><strong>vs Fundamental Analysis:</strong> TA focuses on charts, not company earnings.</p>
+                </div>`,
+                visual: `<div class="slide-visual-ta-intro">
+                    <svg viewBox="0 0 200 120" class="ta-svg">
+                        <polyline points="10,90 30,80 50,85 70,65 90,70 110,50 130,55 150,40 170,45 190,30" fill="none" stroke="var(--cyan)" stroke-width="3.5" class="price-line"/>
+                        <circle cx="110" cy="50" r="7" fill="var(--green)" class="signal-point" style="animation-delay:0.5s"/>
+                        <circle cx="150" cy="40" r="7" fill="var(--red)" class="signal-point" style="animation-delay:0.7s"/>
+                        <text x="100" y="110" fill="var(--text-2)" font-size="11" font-family="var(--font-body)" text-anchor="middle">Price over time</text>
                     </svg>
-                </div>
-                <div class="complete-message">Chapter Complete!</div>
-                <div class="complete-sub">You're now ready to analyze markets 📊</div>
-            </div>`
-        }
-    ]
-}
+                    <p class="slide-caption">Charts tell stories of market psychology</p>
+                </div>`
+            },
+            {
+                title: 'Support & Resistance',
+                subtitle: 'Where price tends to bounce or reverse',
+                content: `<div class="slide-text-content">
+                    <p><strong>Support:</strong> Price level where buying interest is strong enough to prevent further decline 🟢</p>
+                    <p><strong>Resistance:</strong> Price level where selling pressure prevents further rise 🔴</p>
+                    <p><strong>Why it matters:</strong> These are critical decision points—buy near support, sell near resistance.</p>
+                </div>`,
+                visual: `<div class="slide-visual-sr">
+                     <svg viewBox="0 0 200 140" class="sr-svg">
+                       <line x1="10" y1="35" x2="190" y2="35" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="6,4" class="resistance-line" style="animation: fadeIn 0.8s ease 0.3s both;"/>
+                       <text x="10" y="28" fill="var(--red)" font-size="11" font-weight="600" font-family="var(--font-body)" style="animation: fadeIn 0.5s ease 0.5s both;">Resistance</text>
+                       <polyline points="20,105 40,85 60,95 80,65 100,80 120,55 140,70 160,50 180,65" fill="none" stroke="var(--cyan)" stroke-width="3" class="price-line"/>
+                       <line x1="10" y1="105" x2="190" y2="105" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="6,4" class="support-line" style="animation: fadeIn 0.8s ease 0.7s both;"/>
+                       <text x="10" y="120" fill="var(--green)" font-size="11" font-weight="600" font-family="var(--font-body)" style="animation: fadeIn 0.5s ease 0.9s both;">Support</text>
+                      </svg>
+                  </div>``
+            },
+            {
+                title: 'Trend Lines',
+                subtitle: 'Directional bias of the market',
+                content: `<div class="slide-text-content">
+                    <p><strong>Uptrend:</strong> Series of higher highs and higher lows (bullish) 📈</p>
+                    <p><strong>Downtrend:</strong> Series of lower highs and lower lows (bearish) 📉</p>
+                    <p><strong>Sideways:</strong> Consolidation, no clear direction ↔️</p>
+                    <p><strong>Rule:</strong> Trade with the trend until it clearly reverses.</p>
+                </div>`,
+                visual: `<div class="slide-visual-trends">
+                    <svg viewBox="0 0 200 120" class="trends-svg">
+                        <polyline points="15,100 45,80 75,85 105,60 135,65 165,40" fill="none" stroke="var(--green)" stroke-width="3" class="price-line"/>
+                        <line x1="15" y1="100" x2="165" y2="50" stroke="var(--green)" stroke-width="2" stroke-dasharray="4,4" opacity="0.6" class="trend-line"/>
+                        <text x="15" y="25" fill="var(--green)" font-size="13" font-weight="700" font-family="var(--font-head)">Uptrend</text>
+                        <text x="15" y="40" fill="var(--text-3)" font-size="10" font-family="var(--font-body)">Higher Highs + Higher Lows</text>
+                    </svg>
+                </div>`
+            },
+            {
+                title: 'Chart Patterns',
+                subtitle: 'Recognizable formations that signal moves',
+                content: `<div class="slide-text-content">
+                    <p><strong>Reversal Patterns:</strong></p>
+                    <ul class="slide-list">
+                        <li>Head & Shoulders (bearish reversal)</li>
+                        <li>Double Top/Bottom (trend exhaustion)</li>
+                    </ul>
+                    <p><strong>Continuation Patterns:</strong></p>
+                    <ul class="slide-list">
+                        <li>Flags & Pennants (brief pause)</li>
+                        <li>Triangles (consolidation before breakout)</li>
+                    </ul>
+                </div>`,
+                visual: `<div class="slide-visual-patterns">
+                    <svg viewBox="0 0 200 120" class="patterns-svg">
+                        <polyline points="20,80 40,60 60,65 80,40 100,65 120,60 140,80" fill="none" stroke="var(--cyan)" stroke-width="3" class="price-line"/>
+                        <text x="70" y="110" fill="var(--text-2)" font-size="11" font-family="var(--font-body)" text-anchor="middle">Head & Shoulders</text>
+                        <circle cx="80" cy="40" r="5" fill="var(--red)" class="signal-point"/>
+                        <text x="85" y="30" fill="var(--red)" font-size="10" font-weight="600" font-family="var(--font-body)">Head</text>
+                    </svg>
+                </div>`
+            },
+            {
+                title: 'Moving Averages',
+                subtitle: 'Smoothing price data to identify trends',
+                content: `<div class="slide-text-content">
+                    <p><strong>Simple Moving Average (SMA):</strong> Average price over N periods</p>
+                    <p><strong>Common periods:</strong> 20-day (short-term), 50-day (medium), 200-day (long-term)</p>
+                    <p><strong>Golden Cross:</strong> 50-day crosses above 200-day (bullish signal) 🟢</p>
+                    <p><strong>Death Cross:</strong> 50-day crosses below 200-day (bearish signal) 🔴</p>
+                </div>`,
+                visual: `<div class="slide-visual-ma">
+                    <svg viewBox="0 0 200 120" class="ma-svg">
+                        <polyline points="10,70 30,65 50,75 70,60 90,65 110,55 130,60 150,50 170,55 190,45" fill="none" stroke="var(--text-3)" stroke-width="2" opacity="0.4" class="raw-price"/>
+                        <polyline points="10,72 30,68 50,70 70,64 90,62 110,58 130,56 150,53 170,51 190,48" fill="none" stroke="var(--cyan)" stroke-width="2.5" class="ma-line"/>
+                        <text x="15" y="25" fill="var(--cyan)" font-size="11" font-weight="600" font-family="var(--font-body)">Moving Average smooths noise</text>
+                    </svg>
+                </div>`
+            },
+            {
+                title: 'Volume Analysis',
+                subtitle: 'Confirmation through trading activity',
+                content: `<div class="slide-text-content">
+                    <p><strong>Volume</strong> measures the number of shares traded. It confirms the strength of a move.</p>
+                    <p><strong>Rule:</strong> Breakouts with high volume are more reliable than low-volume breakouts.</p>
+                    <p><strong>Divergence:</strong> Price rising but volume falling = weak move (potential reversal)</p>
+                </div>`,
+                visual: `<div class="slide-visual-volume">
+                    <svg viewBox="0 0 200 120" class="volume-svg">
+                        <rect x="20" y="70" width="18" height="40" fill="var(--green)" opacity="0.6" class="volume-bar"/>
+                        <rect x="48" y="60" width="18" height="50" fill="var(--green)" opacity="0.7" class="volume-bar" style="animation-delay:0.1s"/>
+                        <rect x="76" y="50" width="18" height="60" fill="var(--green)" opacity="0.8" class="volume-bar" style="animation-delay:0.2s"/>
+                        <rect x="104" y="40" width="18" height="70" fill="var(--green)" class="volume-bar" style="animation-delay:0.3s"/>
+                        <rect x="132" y="55" width="18" height="55" fill="var(--green)" opacity="0.7" class="volume-bar" style="animation-delay:0.4s"/>
+                        <text x="85" y="25" fill="var(--text-1)" font-size="12" font-weight="700" font-family="var(--font-head)" text-anchor="middle">Volume Bars</text>
+                    </svg>
+                    <p class="slide-caption">Volume confirms price moves</p>
+                </div>`
+            },
+            {
+                title: 'Key Takeaways',
+                subtitle: 'Technical Analysis Summary',
+                content: `<div class="slide-text-content">
+                    <p><strong>You now understand:</strong></p>
+                    <ul class="slide-list">
+                        <li>✅ TA studies price action, not fundamentals</li>
+                        <li>✅ Support & Resistance guide entries/exits</li>
+                        <li>✅ Trends define directional bias</li>
+                        <li>✅ Chart patterns signal future moves</li>
+                        <li>✅ Moving Averages smooth trends</li>
+                        <li>✅ Volume confirms price strength</li>
+                    </ul>
+                    <p><strong>Practice:</strong> Apply these concepts to real charts in MarketIQ puzzles! 🚀</p>
+                </div>`,
+                visual: `<div class="slide-visual-complete">
+                    <div class="complete-icon-box">
+                        <svg viewBox="0 0 120 120" class="complete-svg">
+                            <circle cx="60" cy="60" r="50" fill="var(--green-dim)" stroke="var(--green)" stroke-width="4" class="complete-circle"/>
+                            <polyline points="35 60, 52 77, 85 44" fill="none" stroke="var(--green)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" class="complete-check"/>
+                        </svg>
+                    </div>
+                    <div class="complete-message">Chapter Complete!</div>
+                    <div class="complete-sub">You're now ready to analyze markets 📊</div>
+                </div>`
+            }
+        ]
+    }
+};
 
 // ===== CHAPTER FUNCTIONS =====
 function openChapter(chapterId) {
@@ -1975,5 +1935,3 @@ function updateSlideNav() {
         nextBtn.onclick = nextSlide;
     }
 }
-
-
