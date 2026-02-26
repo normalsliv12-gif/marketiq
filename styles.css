@@ -2149,29 +2149,4 @@ body {
         width: 100%;
     }
 }
-/* ── Missing Animation Classes for Technical Analysis ── */
-
-/* Support & Resistance Lines */
-.resistance-line,
-.support-line {
-    stroke-dasharray: 300;
-    animation: drawLine 2s ease forwards;
-}
-
-/* Moving Average Lines */
-.ma-line {
-    stroke-dasharray: 400;
-    animation: drawLine 2.5s ease forwards;
-}
-
-.raw-price {
-    stroke-dasharray: 400;
-    animation: drawLine 2s ease forwards 0.3s;
-}
-
-/* Ensure SR and MA SVGs are visible */
-.sr-svg, .ma-svg, .trends-svg, .patterns-svg {
-    overflow: visible;
-}
-
 
