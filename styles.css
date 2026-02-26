@@ -2149,4 +2149,59 @@ body {
         width: 100%;
     }
 }
+/* ============================================
+   NOTES MODULE — Visual Container Fixes
+============================================ */
+
+/* Inner visual wrappers - ensure they take up space */
+.slide-visual-hero,
+.slide-visual-diagram,
+.slide-visual-flow,
+.slide-visual-candle,
+.slide-visual-participants,
+.slide-visual-sentiment,
+.slide-visual-orders,
+.slide-visual-complete,
+.slide-visual-ta-intro,
+.slide-visual-sr,
+.slide-visual-trends,
+.slide-visual-patterns,
+.slide-visual-ma,
+.slide-visual-volume {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Make sure all SVGs inside visuals are visible and sized properly */
+.slide-visual svg {
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+    display: block;
+}
+
+/* Specific SVG containers that need more space */
+.sr-svg,
+.ma-svg,
+.trends-svg,
+.patterns-svg {
+    max-width: 280px;
+    overflow: visible;
+}
+
+.ta-svg,
+.volume-svg,
+.participants-svg {
+    max-width: 220px;
+}
+
+/* SVG text elements should be visible */
+.slide-visual svg text {
+    fill: var(--text-2);
+    font-family: var(--font-body);
+}
 
