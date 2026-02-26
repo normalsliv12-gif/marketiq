@@ -1686,14 +1686,14 @@ const CHAPTERS = {
                     <p><strong>Why it matters:</strong> These are critical decision points—buy near support, sell near resistance.</p>
                 </div>`,
                 visual: `<div class="slide-visual-sr">
-                    <svg viewBox="0 0 200 140" class="sr-svg">
-                        <line x1="10" y1="35" x2="190" y2="35" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="6,4" class="resistance-line"/>
-                        <text x="195" y="38" fill="var(--red)" font-size="11" font-weight="600" font-family="var(--font-body)">Resistance</text>
-                        <polyline points="20,105 40,85 60,95 80,65 100,80 120,55 140,70 160,50 180,65" fill="none" stroke="var(--cyan)" stroke-width="3" class="price-line"/>
-                        <line x1="10" y1="105" x2="190" y2="105" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="6,4" class="support-line"/>
-                        <text x="195" y="110" fill="var(--green)" font-size="11" font-weight="600" font-family="var(--font-body)">Support</text>
-                    </svg>
-                </div>`
+                     <svg viewBox="0 0 200 140" class="sr-svg">
+                       <line x1="10" y1="35" x2="190" y2="35" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="6,4" class="resistance-line" style="animation: fadeIn 0.8s ease 0.3s both;"/>
+                       <text x="10" y="28" fill="var(--red)" font-size="11" font-weight="600" font-family="var(--font-body)" style="animation: fadeIn 0.5s ease 0.5s both;">Resistance</text>
+                       <polyline points="20,105 40,85 60,95 80,65 100,80 120,55 140,70 160,50 180,65" fill="none" stroke="var(--cyan)" stroke-width="3" class="price-line"/>
+                       <line x1="10" y1="105" x2="190" y2="105" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="6,4" class="support-line" style="animation: fadeIn 0.8s ease 0.7s both;"/>
+                       <text x="10" y="120" fill="var(--green)" font-size="11" font-weight="600" font-family="var(--font-body)" style="animation: fadeIn 0.5s ease 0.9s both;">Support</text>
+                      </svg>
+                  </div>``
             },
             {
                 title: 'Trend Lines',
@@ -1935,3 +1935,4 @@ function updateSlideNav() {
         nextBtn.onclick = nextSlide;
     }
 }
+
