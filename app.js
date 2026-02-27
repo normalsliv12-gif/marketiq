@@ -87,6 +87,40 @@ function hideLoading(errorMsg) {
     }
 }
 
+// ===== SIDEBAR TOGGLE =====
+// --------------------------------------------------------
+// NEW: toggleSidebar — opens/closes the left sidebar.
+// On mobile, clicking any sidebar link auto-closes it via
+// the onclick handlers on each <a> in the sidebar.
+// --------------------------------------------------------
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const hamburger = document.getElementById('hamburgerBtn');
+
+    if (!sidebar) return;
+
+    const isOpen = sidebar.classList.toggle('active');
+    if (overlay) overlay.classList.toggle('active', isOpen);
+
+    // Animate hamburger → X when open
+    if (hamburger) {
+        hamburger.classList.toggle('is-open', isOpen);
+    }
+}
+
+// Close sidebar on mobile after a link is clicked
+function closeSidebarOnMobile() {
+    if (window.innerWidth < 1024) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const hamburger = document.getElementById('hamburgerBtn');
+        if (sidebar) sidebar.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+        if (hamburger) hamburger.classList.remove('is-open');
+    }
+}
+
 // ===== NAVIGATION =====
 function showSection(name) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -94,6 +128,7 @@ function showSection(name) {
     if (el) el.classList.add('active');
 
     updateMobileNav(name);
+    updateSidebarActive(name);
 
     // Section-specific logic
     if (name === 'home')        { updateHomeStats(); }
@@ -109,13 +144,22 @@ function showSection(name) {
     return false;
 }
 
+// NEW: highlight the active sidebar link
+function updateSidebarActive(active) {
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        link.classList.toggle('active', link.dataset.section === active);
+    });
+}
+
 function navTo(section) {
     if (!currentUser && !['login', 'leaderboard'].includes(section)) {
         showToast("Sign in first to access this section.", 'info');
         showSection('login');
+        closeSidebarOnMobile();
         return false;
     }
     showSection(section);
+    closeSidebarOnMobile();
     return false;
 }
 
@@ -130,19 +174,42 @@ function updateMobileNav(active) {
     if (mobileNav) {
         mobileNav.style.display = currentUser ? 'flex' : 'none';
     }
+    // Show/hide sidebar footer sign-out
+    const sidebarFooter = document.getElementById('sidebarFooter');
+    if (sidebarFooter) {
+        sidebarFooter.style.display = currentUser ? 'flex' : 'none';
+    }
 }
 
+// --------------------------------------------------------
+// NEW: updateNavUser — renders either a guest "Sign In"
+// button or a profile icon button in the top-right of the
+// navbar. No text username chip — just the silhouette icon.
+// --------------------------------------------------------
 function updateNavUser() {
     const navUser = document.getElementById('navUser');
     if (!navUser) return;
+
     if (currentUser) {
+        // Show a rating badge + faceless profile icon button
         navUser.innerHTML = `
-            <div class="nav-user-chip">
-                <span>${currentUser.username}</span>
-                <span class="chip-rating">${currentUser.rating}</span>
+            <div class="nav-user-right">
+                <span class="nav-rating-badge mono">${currentUser.rating}</span>
+                <button class="nav-profile-btn" onclick="navTo('profile')" title="View Profile" aria-label="Profile">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" width="22" height="22">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/>
+                    </svg>
+                </button>
             </div>`;
     } else {
         navUser.innerHTML = `<button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>`;
+    }
+
+    // Also update sidebar footer visibility
+    const sidebarFooter = document.getElementById('sidebarFooter');
+    if (sidebarFooter) {
+        sidebarFooter.style.display = currentUser ? 'flex' : 'none';
     }
 }
 
@@ -324,8 +391,6 @@ function _closeModal() {
 }
 
 // ── LEGACY PASSWORD HANDLER ──
-// Called for accounts that exist in Firestore but have no passwordHash.
-// Forces the user to create a password before they can use the app.
 function handleLegacyPassword(userData, ref, username) {
     _pendingModalUser = { userData, ref, username, isNew: false, isLegacy: true };
 
@@ -362,7 +427,6 @@ async function confirmSetPassword() {
 
     if (newPw.length < 4) { showToast("Password must be at least 4 characters.", 'error'); return; }
     if (newPw !== confPw) { showToast("Passwords don't match.", 'error'); return; }
-    // Strength is shown as guidance only — any password ≥ 4 chars is accepted at the user's discretion.
 
     const btn = document.getElementById('setPasswordBtn');
     btn.disabled = true;
@@ -378,7 +442,6 @@ async function confirmSetPassword() {
         showToast("Password set! Your account is now protected.", 'success');
         _pendingModalUser = null;
 
-        // If this was a legacy forced-modal flow, ensure home is shown
         if (currentUser) {
             updateNavUser();
             showSection('home');
@@ -399,6 +462,11 @@ function logout() {
     updateNavUser();
     updateMobileNav('login');
     document.getElementById('mobileNav').style.display = 'none';
+    // Close sidebar if open
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (sidebar) sidebar.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
     showSection('login');
     showToast("Signed out. See you tomorrow!", 'info');
 }
@@ -453,7 +521,6 @@ function resetDailyIfNeeded() {
     if (currentUser.lastPlayedDate !== today) {
         currentUser.dailyPuzzlesCompleted = 0;
         currentUser.lastPlayedDate = today;
-        // Don't save to Firestore yet — will save when they answer
     }
 }
 
@@ -478,6 +545,7 @@ function loadDailyPuzzle() {
     selectedOption = null;
     renderPuzzle(document.getElementById('puzzleContainer'), currentPuzzle, false);
 }
+
 function renderChart(data) {
     if (!window.LightweightCharts) {
         console.error("LightweightCharts not loaded");
@@ -524,7 +592,6 @@ function renderPuzzle(container, puzzle, isThrill) {
     </div>
 `;
 
-
     container.innerHTML = `
         <div class="puzzle-label">${label}</div>
         <h2 class="puzzle-title">${puzzle.title}</h2>
@@ -554,13 +621,12 @@ function renderPuzzle(container, puzzle, isThrill) {
         </button>
         <div id="feedbackArea_${isThrill ? 'thrill' : 'daily'}"></div>
     `;
-// Delay slightly so DOM renders first
-setTimeout(() => {
-    if (puzzle.chartData) {
-        renderChart(puzzle.chartData);
-    }
-}, 50);
 
+    setTimeout(() => {
+        if (puzzle.chartData) {
+            renderChart(puzzle.chartData);
+        }
+    }, 50);
 }
 
 function selectOption(btn, isThrill) {
@@ -721,7 +787,6 @@ function startThrillRound() {
     const statusEl = document.getElementById('thrillStatus');
     const puzzleEl = document.getElementById('thrillPuzzleContainer');
 
-    // Show circular timer
     statusEl.innerHTML = `
         <div style="text-align:center; margin-bottom:24px;">
             <div class="thrill-timer-wrap">
@@ -741,7 +806,7 @@ function startThrillRound() {
 }
 
 function startThrillCountdown() {
-    const circumference = 2 * Math.PI * 44; // 276.46
+    const circumference = 2 * Math.PI * 44;
 
     thrillTimer = setInterval(() => {
         thrillRemaining--;
@@ -755,7 +820,6 @@ function startThrillCountdown() {
             circle.style.strokeDashoffset = offset;
         }
 
-        // Change color as time runs low
         if (circle) {
             if (thrillRemaining <= 10)      circle.style.stroke = 'var(--red)';
             else if (thrillRemaining <= 30) circle.style.stroke = 'var(--amber)';
@@ -768,7 +832,6 @@ function startThrillCountdown() {
         if (thrillRemaining <= 0) {
             clearInterval(thrillTimer);
             thrillTimer = null;
-            // Auto-submit as poor if no answer
             if (!selectedOption) selectedOption = 'poor';
             submitAnswer(true);
             showToast("Time's up! Auto-submitted.", 'warning');
@@ -835,7 +898,6 @@ function renderLeaderboard(docs) {
 async function renderProfile() {
     if (!currentUser) { showSection('login'); return; }
 
-    // Refresh user data from Firestore
     try {
         const snap = await db.collection(USERS_COL).doc(currentUser.username).get();
         if (snap.exists) currentUser = snap.data();
@@ -848,7 +910,6 @@ async function renderProfile() {
     setEl('profilePuzzles', u.puzzlesSolved);
     setEl('profileStreak', u.streak);
 
-    // Calibration score display
     const calibScore = u.calibrationScore != null ? u.calibrationScore.toFixed(3) : '—';
     const calibForecastCount = u.calibrationForecastCount || 0;
     setEl('profileCalibrationScore', calibScore);
@@ -863,17 +924,14 @@ async function renderProfile() {
         }
     }
 
-    // Avatar initial
     const av = document.getElementById('profileAvatar');
     if (av) av.textContent = u.username.charAt(0).toUpperCase();
 
-    // Global rank
     const rankSnap = await db.collection(USERS_COL)
         .where('rating', '>', u.rating).get().catch(() => null);
     const rank = rankSnap ? rankSnap.size + 1 : '—';
     setEl('profileRankBadge', `#${rank} Global Rank`);
 
-    // Breakdown bars
     const total = u.puzzlesSolved || 1;
     const perf  = u.performance || {};
     animateBar('barOptimal', perf.optimal || 0, total);
@@ -885,7 +943,6 @@ async function renderProfile() {
     setEl('riskyCount',   perf.risky   || 0);
     setEl('poorCount',    perf.poor    || 0);
 
-    // Recent activity
     const actFeed = document.getElementById('recentActivity');
     const activity = (u.recentActivity || []).slice().reverse().slice(0, 10);
     if (actFeed) {
@@ -982,11 +1039,8 @@ function timeAgo(ts) {
 
 // ============================================================
 //  PREDICTIONS MODULE — Weekly Forecasting
-//  3 questions · crowd consensus · Chart.js visualization
 // ============================================================
 
-
-// ===== PREDICTION QUESTIONS (edit weekly) =====
 const PREDICTION_QUESTIONS = [
     {
         id: 'q1',
@@ -1011,16 +1065,13 @@ const PREDICTION_QUESTIONS = [
     }
 ];
 
-// ===== STATE =====
 let predictionAnswers  = { q1: null, q2: null, q3: null };
 let predTimerInterval  = null;
-const predChartInstances = {};   // track Chart.js instances to destroy on re-render
+const predChartInstances = {};
 
-// ===== WEEK KEY HELPERS =====
 function getCurrentWeekKey() {
     const now  = new Date();
     const year = now.getFullYear();
-    // ISO week number
     const startOfYear = new Date(year, 0, 1);
     const week = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
     return `${year}-W${String(week).padStart(2, '0')}`;
@@ -1028,7 +1079,6 @@ function getCurrentWeekKey() {
 
 function getTimeUntilWeekEnd() {
     const now    = new Date();
-    // Week ends Sunday 23:59:59
     const endOfWeek = new Date(now);
     endOfWeek.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7);
     endOfWeek.setHours(23, 59, 59, 999);
@@ -1047,16 +1097,13 @@ function formatTimeRemaining({ days, hours, minutes, seconds }) {
     return `${minutes}m ${seconds}s`;
 }
 
-// ===== LOAD PREDICTIONS =====
 async function loadPredictions() {
     if (!currentUser) { showSection('login'); return; }
 
-    // Clear any existing timer
     if (predTimerInterval) { clearInterval(predTimerInterval); predTimerInterval = null; }
 
     const weekKey = getCurrentWeekKey();
 
-    // Start countdown
     updatePredictionTimer();
     predTimerInterval = setInterval(updatePredictionTimer, 1000);
 
@@ -1083,14 +1130,12 @@ async function loadPredictions() {
     }
 }
 
-// ===== COUNTDOWN TIMER =====
 function updatePredictionTimer() {
     const el = document.getElementById('predTimeRemaining');
     if (!el) return;
     el.textContent = formatTimeRemaining(getTimeUntilWeekEnd());
 }
 
-// ===== RENDER QUESTION CARDS =====
 function renderPredictionQuestions() {
     predictionAnswers = { q1: null, q2: null, q3: null };
 
@@ -1130,7 +1175,6 @@ function renderPredictionQuestions() {
         </div>
     `).join('');
 
-    // Reset submit button
     const btn = document.getElementById('predSubmitBtn');
     if (btn) {
         btn.disabled     = true;
@@ -1140,7 +1184,6 @@ function renderPredictionQuestions() {
     if (hint) hint.style.display = 'block';
 }
 
-// ===== SLIDER UPDATE =====
 function updatePredictionValue(questionId, value) {
     const num     = parseInt(value);
     const valueEl = document.getElementById(`value_${questionId}`);
@@ -1149,7 +1192,6 @@ function updatePredictionValue(questionId, value) {
     if (valueEl) valueEl.textContent = num;
     if (fillEl)  fillEl.style.width  = num + '%';
 
-    // Color the value pill by zone
     const pill = valueEl?.closest('.pred-value-pill');
     if (pill) {
         pill.className = 'pred-value-pill';
@@ -1159,7 +1201,6 @@ function updatePredictionValue(questionId, value) {
 
     predictionAnswers[questionId] = num;
 
-    // Enable submit only when ALL three sliders have been touched
     const allSet = Object.values(predictionAnswers).every(v => v !== null);
     const btn    = document.getElementById('predSubmitBtn');
     const hint   = document.querySelector('.pred-submit-hint');
@@ -1167,7 +1208,6 @@ function updatePredictionValue(questionId, value) {
     if (hint) hint.style.display = allSet ? 'none' : 'block';
 }
 
-// ===== SUBMIT PREDICTIONS =====
 async function submitPredictions() {
     if (!currentUser) return;
 
@@ -1184,7 +1224,6 @@ async function submitPredictions() {
     try {
         const batch = db.batch();
 
-        // Store each individual forecast (for crowd aggregation)
         PREDICTION_QUESTIONS.forEach(q => {
             const predRef = db.collection('predictions')
                               .doc(weekKey)
@@ -1197,7 +1236,6 @@ async function submitPredictions() {
             });
         });
 
-        // Store submission record on user doc
         const userPredRef = db.collection('userPredictions').doc(currentUser.username);
         batch.set(userPredRef, {
             [weekKey]: {
@@ -1223,7 +1261,6 @@ async function submitPredictions() {
     }
 }
 
-// ===== RENDER RESULTS =====
 async function renderPredictionResults(weekKey) {
     const container = document.getElementById('predResultsContainer');
     if (!container) return;
@@ -1233,7 +1270,6 @@ async function renderPredictionResults(weekKey) {
             Loading crowd data...
         </div>`;
 
-    // Destroy any existing Chart.js instances
     Object.values(predChartInstances).forEach(c => c.destroy());
 
     try {
@@ -1291,7 +1327,6 @@ async function renderPredictionResults(weekKey) {
 
         container.innerHTML = resultsHTML.join('');
 
-        // Render charts after DOM update
         setTimeout(() => {
             PREDICTION_QUESTIONS.forEach((q, idx) => {
                 renderPredictionChart(q.id, weekKey, userAnswers[idx]);
@@ -1304,7 +1339,6 @@ async function renderPredictionResults(weekKey) {
     }
 }
 
-// ===== CHART RENDER =====
 async function renderPredictionChart(questionId, weekKey, userProb) {
     const canvas = document.getElementById(`chart_${questionId}`);
     if (!canvas) return;
@@ -1313,7 +1347,6 @@ async function renderPredictionChart(questionId, weekKey, userProb) {
     const allProbs = [];
     qSnap.forEach(doc => allProbs.push(doc.data().probability));
 
-    // Build 5-bucket distribution
     const buckets      = { '0–20': 0, '21–40': 0, '41–60': 0, '61–80': 0, '81–100': 0 };
     const bucketKeys   = Object.keys(buckets);
     const userBucket   = getProbabilityBucket(userProb);
@@ -1326,7 +1359,6 @@ async function renderPredictionChart(questionId, weekKey, userProb) {
         b === userBucket ? '#00e5ff' : '#3d8ef0'
     );
 
-    // Destroy previous instance if exists
     if (predChartInstances[questionId]) predChartInstances[questionId].destroy();
 
     predChartInstances[questionId] = new Chart(canvas, {
@@ -1376,7 +1408,6 @@ async function renderPredictionChart(questionId, weekKey, userProb) {
     });
 }
 
-// ===== HELPERS =====
 function getProbabilityBucket(prob) {
     if (prob <= 20)  return '0–20';
     if (prob <= 40)  return '21–40';
@@ -1395,15 +1426,14 @@ function calculateDistribution(arr) {
     arr.forEach(p => { d[getProbabilityBucket(p)]++; });
     return d;
 }
+
 // ============================================================
 //  NOTES MODULE — Interactive Learning System
-//  Professional slide-based education with animations
 // ============================================================
 
 let currentSlideIndex = 0;
 let currentChapterData = null;
 
-// ===== CHAPTER DATA =====
 const CHAPTERS = {
     fundamentals: {
         title: 'Stock Market Fundamentals',
@@ -1804,14 +1834,11 @@ const CHAPTERS = {
     }
 };
 
-// ===== CHAPTER FUNCTIONS =====
 function openChapter(chapterId) {
     currentChapterData = CHAPTERS[chapterId];
     currentSlideIndex = 0;
-    
     document.getElementById('notesChapterView').style.display = 'none';
     document.getElementById('notesLessonView').style.display = 'block';
-    
     renderSlides();
     updateSlideNav();
 }
@@ -1825,12 +1852,9 @@ function closeLesson() {
 
 function renderSlides() {
     if (!currentChapterData) return;
-    
     const wrapper = document.getElementById('notesSlideWrapper');
     const totalSlides = currentChapterData.slides.length;
-    
     document.getElementById('notesTotalSlides').textContent = totalSlides;
-    
     wrapper.innerHTML = currentChapterData.slides.map((slide, idx) => `
         <div class="notes-slide ${idx === 0 ? 'active' : ''}" data-slide-index="${idx}">
             <div class="slide-header">
@@ -1838,17 +1862,13 @@ function renderSlides() {
                 <p class="slide-subtitle">${slide.subtitle}</p>
             </div>
             <div class="slide-body">
-                <div class="slide-content">
-                    ${slide.content}
-                </div>
+                <div class="slide-content">${slide.content}</div>
                 ${slide.visual ? `<div class="slide-visual">${slide.visual}</div>` : ''}
             </div>
         </div>
     `).join('');
-    
-    // Render progress dots
     const dotsContainer = document.getElementById('notesProgressDots');
-    dotsContainer.innerHTML = currentChapterData.slides.map((_, idx) => 
+    dotsContainer.innerHTML = currentChapterData.slides.map((_, idx) =>
         `<span class="progress-dot ${idx === 0 ? 'active' : ''}" data-dot-index="${idx}"></span>`
     ).join('');
 }
@@ -1856,20 +1876,15 @@ function renderSlides() {
 function nextSlide() {
     if (!currentChapterData) return;
     if (currentSlideIndex >= currentChapterData.slides.length - 1) return;
-    
     const currentSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
     currentSlideIndex++;
-    const nextSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
-    
-    // Animate out current
+    const nextSlideEl = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
     currentSlide.style.animation = 'slideOutLeft 0.4s ease forwards';
-    
-    // Animate in next
     setTimeout(() => {
         currentSlide.classList.remove('active');
         currentSlide.style.animation = '';
-        nextSlide.classList.add('active');
-        nextSlide.style.animation = 'slideInRight 0.4s ease forwards';
+        nextSlideEl.classList.add('active');
+        nextSlideEl.style.animation = 'slideInRight 0.4s ease forwards';
         updateSlideNav();
     }, 400);
 }
@@ -1877,15 +1892,10 @@ function nextSlide() {
 function previousSlide() {
     if (!currentChapterData) return;
     if (currentSlideIndex <= 0) return;
-    
     const currentSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
     currentSlideIndex--;
     const prevSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
-    
-    // Animate out current
     currentSlide.style.animation = 'slideOutRight 0.4s ease forwards';
-    
-    // Animate in previous
     setTimeout(() => {
         currentSlide.classList.remove('active');
         currentSlide.style.animation = '';
@@ -1897,41 +1907,24 @@ function previousSlide() {
 
 function updateSlideNav() {
     if (!currentChapterData) return;
-    
     const prevBtn = document.getElementById('notesPrevBtn');
     const nextBtn = document.getElementById('notesNextBtn');
     const slideNum = document.getElementById('notesSlideNum');
-    
     slideNum.textContent = currentSlideIndex + 1;
-    
     prevBtn.disabled = currentSlideIndex === 0;
     nextBtn.disabled = currentSlideIndex === currentChapterData.slides.length - 1;
-    
-    // Update progress dots
     document.querySelectorAll('.progress-dot').forEach((dot, idx) => {
         dot.classList.toggle('active', idx === currentSlideIndex);
         dot.classList.toggle('completed', idx < currentSlideIndex);
     });
-    
-    // Change Next button text on last slide
     if (currentSlideIndex === currentChapterData.slides.length - 1) {
-        nextBtn.innerHTML = `
-            Finish
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                <polyline points="20 6 9 17 4 12"/>
-            </svg>
-        `;
+        nextBtn.innerHTML = `Finish <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>`;
         nextBtn.onclick = function() {
             showToast('Chapter completed! 🎉', 'success');
             closeLesson();
         };
     } else {
-        nextBtn.innerHTML = `
-            Next
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                <polyline points="9 18 15 12 9 6"/>
-            </svg>
-        `;
+        nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 18 15 12 9 6"/></svg>`;
         nextBtn.onclick = nextSlide;
     }
 }
