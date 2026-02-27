@@ -195,6 +195,7 @@ function updateNavUser() {
         navUser.innerHTML = `
             <div class="nav-user-right">
                 <span class="nav-rating-badge mono">${currentUser.rating}</span>
+                <span class="nav-username">${currentUser.username}</span>
                 <button class="nav-profile-btn" onclick="navTo('profile')" title="View Profile" aria-label="Profile">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" width="22" height="22">
                         <circle cx="12" cy="8" r="4"/>
@@ -1928,3 +1929,4 @@ function updateSlideNav() {
         nextBtn.onclick = nextSlide;
     }
 }
+
