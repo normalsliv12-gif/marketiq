@@ -748,6 +748,15 @@ function loadThrillStatus() {
             <div class="thrill-done-card">
                 <h2>Thrill Round Complete</h2>
                 <p>You've already tackled today's thrill round. Come back tomorrow for a new high-stakes challenge.</p>
+                
+                <!-- Feedback reminder -->
+                <div class="feedback-hint-inline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                    <span><strong>Explored everything?</strong> Your feedback helps us improve MarketIQ!</span>
+                </div>
+                
                 <button class="btn-primary" onclick="showSection('home')">Back to Home</button>
             </div>`;
         return;
@@ -774,6 +783,15 @@ function loadThrillStatus() {
             <button class="btn-primary btn-large" onclick="startThrillRound()" style="background:var(--orange);color:#fff">
                 Start Thrill Round
             </button>
+            
+            <!-- Feedback hint -->
+            <div class="feedback-hint-inline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4M12 8h.01"/>
+                </svg>
+                <span>After exploring all features, don't forget to share your feedback!</span>
+            </div>
         </div>`;
     document.getElementById('thrillPuzzleContainer').innerHTML = '';
 }
@@ -1929,4 +1947,3 @@ function updateSlideNav() {
         nextBtn.onclick = nextSlide;
     }
 }
-
