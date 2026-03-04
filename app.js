@@ -252,6 +252,161 @@ function getPasswordStrength(password) {
 let _pendingModalUser = null;
 
 // ===== LOGIN =====
+// ===== MULTI-STEP AUTH FLOW =====
+
+// Tracks the pending username during registration
+let _pendingRegUsername = null;
+
+/**
+ * Switch between auth steps with a smooth fade transition.
+ * stepName: 'gate' | 'login' | 'register-username' | 'register-password'
+ */
+function showAuthStep(stepName) {
+    const map = {
+        'gate':              'authGate',
+        'login':             'authLogin',
+        'register-username': 'authRegisterUsername',
+        'register-password': 'authRegisterPassword',
+    };
+    document.querySelectorAll('.auth-step').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById(map[stepName]);
+    if (target) {
+        target.classList.add('active');
+        // Auto-focus the first input in the new step
+        setTimeout(() => {
+            const first = target.querySelector('input');
+            if (first) first.focus();
+        }, 80);
+    }
+    // Clear errors on step change
+    ['regUsernameError','regPasswordError'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '';
+    });
+}
+
+/**
+ * Step 1 of Registration: validate username format then check Firestore availability.
+ */
+async function handleCheckUsername(event) {
+    event.preventDefault();
+    const input   = document.getElementById('regUsernameInput');
+    const errEl   = document.getElementById('regUsernameError');
+    const btn     = document.getElementById('checkUsernameBtn');
+    const username = input.value.trim();
+
+    errEl.textContent = '';
+
+    // Client-side validation
+    if (username.length < 3) { errEl.textContent = 'Username must be at least 3 characters.'; return; }
+    if (username.length > 20) { errEl.textContent = 'Username must be 20 characters or fewer.'; return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        errEl.textContent = 'Only letters, numbers, and underscores allowed.';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+
+    try {
+        const snap = await db.collection(USERS_COL).doc(username).get();
+        if (snap.exists) {
+            errEl.textContent = `"${username}" is already taken — please choose another.`;
+            input.focus();
+            input.select();
+        } else {
+            // Available! Store pending username and move to password step
+            _pendingRegUsername = username;
+            const confirm = document.getElementById('regUsernameConfirm');
+            if (confirm) confirm.textContent = username;
+            showAuthStep('register-password');
+        }
+    } catch (err) {
+        console.error('Username check error:', err);
+        errEl.textContent = 'Connection failed. Check Firebase config.';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Check Availability →';
+    }
+}
+
+/**
+ * Step 2 of Registration: set password and create the Firestore account.
+ */
+async function handleRegister(event) {
+    event.preventDefault();
+    const password  = document.getElementById('regPasswordInput').value;
+    const confirm   = document.getElementById('regConfirmPasswordInput').value;
+    const errEl     = document.getElementById('regPasswordError');
+    const btn       = document.getElementById('registerBtn');
+    const username  = _pendingRegUsername;
+
+    errEl.textContent = '';
+
+    if (!username) { showAuthStep('register-username'); return; }
+    if (password.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; return; }
+    if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating account...';
+
+    try {
+        // Double-check the username wasn't taken between steps
+        const snapCheck = await db.collection(USERS_COL).doc(username).get();
+        if (snapCheck.exists) {
+            showToast(`"${username}" was just taken. Please choose another username.`, 'error');
+            _pendingRegUsername = null;
+            showAuthStep('register-username');
+            return;
+        }
+
+        const hash    = await hashPassword(password);
+        const newUser = { ...buildNewUser(username), passwordHash: hash };
+        await db.collection(USERS_COL).doc(username).set(newUser);
+        currentUser = newUser;
+        showToast(`Welcome to MarketIQ, ${username}! Starting rating: 1200`, 'success');
+        finalizeLogin(username);
+
+    } catch (err) {
+        console.error('Registration error:', err);
+        errEl.textContent = 'Registration failed. Check Firebase config.';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account & Start Competing';
+    }
+}
+
+/**
+ * Password strength indicator for registration step.
+ */
+function updateRegPasswordStrength(value) {
+    const wrap  = document.getElementById('regStrengthWrap');
+    const bar   = document.getElementById('regStrengthBar');
+    const label = document.getElementById('regStrengthLabel');
+    if (!wrap) return;
+    if (!value) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'flex';
+
+    let score = 0;
+    if (value.length >= 4)  score++;
+    if (value.length >= 8)  score++;
+    if (/[A-Z]/.test(value)) score++;
+    if (/[0-9]/.test(value)) score++;
+    if (/[^a-zA-Z0-9]/.test(value)) score++;
+
+    const levels = [
+        { pct: '20%', cls: 'strength-weak',   text: 'Weak' },
+        { pct: '40%', cls: 'strength-weak',   text: 'Weak' },
+        { pct: '60%', cls: 'strength-fair',   text: 'Fair' },
+        { pct: '80%', cls: 'strength-good',   text: 'Good' },
+        { pct: '100%',cls: 'strength-strong', text: 'Strong' },
+    ];
+    const lvl = levels[Math.min(score - 1, 4)] || levels[0];
+    bar.style.width = lvl.pct;
+    bar.className   = 'password-strength-bar ' + lvl.cls;
+    label.textContent = lvl.text;
+}
+
 async function handleLogin(event) {
     event.preventDefault();
     const username = document.getElementById('usernameInput').value.trim();
@@ -262,23 +417,21 @@ async function handleLogin(event) {
 
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
-    btn.textContent = "Connecting...";
+    btn.textContent = "Signing in...";
 
     try {
         const ref  = db.collection(USERS_COL).doc(username);
         const snap = await ref.get();
 
         if (snap.exists) {
-            // ── RETURNING USER ──
             const userData = snap.data();
 
             if (userData.passwordHash) {
-                // ── PASSWORD-PROTECTED ACCOUNT: password is mandatory ──
                 if (!password) {
                     showToast("Please enter your password.", 'error');
                     document.getElementById('passwordInput').focus();
                     btn.disabled = false;
-                    btn.textContent = "Start Competing";
+                    btn.textContent = "Sign In";
                     return;
                 }
                 const inputHash = await hashPassword(password);
@@ -287,49 +440,31 @@ async function handleLogin(event) {
                     document.getElementById('passwordInput').value = '';
                     document.getElementById('passwordInput').focus();
                     btn.disabled = false;
-                    btn.textContent = "Start Competing";
+                    btn.textContent = "Sign In";
                     return;
                 }
-                // Correct password ✓
                 currentUser = userData;
                 showToast(`Welcome back, ${username}! Rating: ${currentUser.rating}`, 'success');
                 finalizeLogin(username);
 
             } else {
-                // ── LEGACY ACCOUNT: no password set → force password creation ──
+                // Legacy account (no password) — force password creation
                 currentUser = userData;
                 finalizeLogin(username, false);
                 handleLegacyPassword(userData, ref, username);
             }
 
         } else {
-            // ── NEW USER: password is mandatory ──
-            if (!password) {
-                showToast("Please create a password to register your account.", 'error');
-                document.getElementById('passwordInput').focus();
-                btn.disabled = false;
-                btn.textContent = "Start Competing";
-                return;
-            }
-            if (password.length < 4) {
-                showToast("Password must be at least 4 characters.", 'error');
-                btn.disabled = false;
-                btn.textContent = "Start Competing";
-                return;
-            }
-            const hash = await hashPassword(password);
-            const newUser = { ...buildNewUser(username), passwordHash: hash };
-            await ref.set(newUser);
-            currentUser = newUser;
-            showToast(`Welcome to MarketIQ, ${username}! Starting rating: 1200`, 'success');
-            finalizeLogin(username);
+            showToast("No account found with that username. Create one instead?", 'error');
+            btn.disabled = false;
+            btn.textContent = "Sign In";
         }
 
     } catch (err) {
         console.error("Login error:", err);
         showToast("Connection failed. Check Firebase config.", 'error');
         btn.disabled = false;
-        btn.textContent = "Start Competing";
+        btn.textContent = "Sign In";
     }
 }
 
@@ -350,6 +485,8 @@ function buildNewUser(username) {
 }
 
 function finalizeLogin(username, showModal = true) {
+    // NEW: clear all auth inputs and reset to gate
+    _pendingRegUsername = null;
     localStorage.setItem('miq_session', username);
     updateNavUser();
     updateMobileNav('home');
@@ -359,7 +496,9 @@ function finalizeLogin(username, showModal = true) {
     document.getElementById('passwordInput').value = '';
     const btn = document.getElementById('loginBtn');
     btn.disabled = false;
-    btn.textContent = "Start Competing";
+    btn.disabled = false; btn.textContent = "Sign In";
+    // Reset auth step to gate
+    showAuthStep("gate");
 }
 
 // ===== SET PASSWORD MODAL =====
@@ -468,7 +607,7 @@ function logout() {
     const overlay = document.getElementById('sidebarOverlay');
     if (sidebar) sidebar.classList.remove('active');
     if (overlay) overlay.classList.remove('active');
-    showSection('login');
+    showAuthStep("gate"); showSection("login");
     showToast("Signed out. See you tomorrow!", 'info');
 }
 
@@ -748,15 +887,6 @@ function loadThrillStatus() {
             <div class="thrill-done-card">
                 <h2>Thrill Round Complete</h2>
                 <p>You've already tackled today's thrill round. Come back tomorrow for a new high-stakes challenge.</p>
-                
-                <!-- Feedback reminder -->
-                <div class="feedback-hint-inline">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                    </svg>
-                    <span><strong>Explored everything?</strong> Your feedback helps us improve MarketIQ!</span>
-                </div>
-                
                 <button class="btn-primary" onclick="showSection('home')">Back to Home</button>
             </div>`;
         return;
@@ -783,15 +913,6 @@ function loadThrillStatus() {
             <button class="btn-primary btn-large" onclick="startThrillRound()" style="background:var(--orange);color:#fff">
                 Start Thrill Round
             </button>
-            
-            <!-- Feedback hint -->
-            <div class="feedback-hint-inline">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 16v-4M12 8h.01"/>
-                </svg>
-                <span>After exploring all features, don't forget to share your feedback!</span>
-            </div>
         </div>`;
     document.getElementById('thrillPuzzleContainer').innerHTML = '';
 }
