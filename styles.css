@@ -2017,158 +2017,148 @@ body {
 .ta-svg, .volume-svg, .participants-svg { max-width: 220px; }
 
 .slide-visual svg text { fill: var(--text-2); font-family: var(--font-body); }
+
+
 /* ============================================
-   FEEDBACK BUTTON & REMINDERS
+   MULTI-STEP AUTH FLOW
 ============================================ */
 
-/* ── Navbar Right Container ── */
-.nav-right {
+/* Auth steps — only .active is shown, others fade out */
+.auth-step {
+    display: none;
+    animation: authStepIn .22s ease both;
+}
+.auth-step.active { display: block; }
+
+@keyframes authStepIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Entry gate: two big choice buttons */
+.auth-gate-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.auth-gate-btn {
     display: flex;
     align-items: center;
     gap: 12px;
-}
-
-/* ── Feedback Button (always visible) ── */
-.feedback-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 18px;
-    background: var(--amber-dim);
-    border: 1.5px solid var(--amber);
-    border-radius: var(--radius);
-    color: var(--amber);
-    font-family: var(--font-body);
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-}
-
-.feedback-btn:hover {
-    background: var(--amber);
-    color: var(--bg-deep);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(255, 184, 0, 0.3);
-}
-
-.feedback-btn svg {
-    flex-shrink: 0;
-}
-
-/* Hide text on small screens */
-@media (max-width: 640px) {
-    .feedback-text {
-        display: none;
-    }
-    .feedback-btn {
-        padding: 10px;
-        width: 40px;
-        height: 40px;
-        justify-content: center;
-    }
-}
-
-/* ── Feedback Reminder Box (after puzzles complete) ── */
-.feedback-reminder-box {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px 24px;
-    background: linear-gradient(135deg, var(--amber-dim), var(--orange-dim));
-    border: 2px solid var(--amber);
+    width: 100%;
+    padding: 16px 20px;
     border-radius: var(--radius-lg);
-    margin: 32px 0;
-    animation: feedbackPulse 2s ease-in-out infinite;
+    font-family: var(--font-head);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    text-align: left;
 }
-
-@keyframes feedbackPulse {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 0 8px rgba(255, 184, 0, 0);
-    }
-}
-
-.fbr-icon {
-    font-size: 2.5rem;
-    flex-shrink: 0;
-    animation: bounce 2s ease-in-out infinite;
-}
-
-@keyframes bounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-8px);
-    }
-}
-
-.fbr-text {
-    flex: 1;
-    line-height: 1.5;
-}
-
-.fbr-text strong {
-    display: block;
-    font-size: 1.05rem;
-    color: var(--amber);
-    margin-bottom: 4px;
-}
-
-.fbr-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: var(--amber);
+.auth-gate-btn.primary {
+    background: var(--cyan);
     color: var(--bg-deep);
-    border-radius: var(--radius);
+    border-color: var(--cyan);
+}
+.auth-gate-btn.primary:hover {
+    background: var(--cyan-light, #33eeff);
+    box-shadow: 0 0 18px var(--cyan-dim);
+}
+.auth-gate-btn.secondary {
+    background: var(--bg-surface);
+    color: var(--text-1);
+    border-color: var(--border-base);
+}
+.auth-gate-btn.secondary:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: var(--cyan-dim);
+}
+
+/* Back button in auth steps */
+.auth-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--text-2);
+    font-size: .85rem;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 20px;
+    transition: color .15s;
+}
+.auth-back-btn:hover { color: var(--cyan); }
+
+/* Step heading */
+.auth-step-heading { margin-bottom: 24px; }
+.auth-step-heading h2 {
+    font-family: var(--font-head);
+    font-size: 1.35rem;
     font-weight: 700;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
+    margin-bottom: 6px;
+}
+.auth-step-heading p { color: var(--text-2); font-size: .9rem; }
+
+/* Step badge (e.g. "Step 1 of 2") */
+.auth-step-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--cyan-dim);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
 }
 
-.fbr-btn:hover {
-    background: #ffcc00;
-    transform: translateX(4px);
-    box-shadow: 0 4px 16px rgba(255, 184, 0, 0.4);
+/* Inline username confirmation */
+.auth-username-confirm {
+    color: var(--cyan);
+    font-family: var(--font-mono);
 }
 
-/* ── Inline feedback hint (for thrill) ── */
-.feedback-hint-inline {
+/* Inline field error message */
+.auth-field-error {
+    display: block;
+    margin-top: 6px;
+    font-size: .82rem;
+    color: #ff6b6b;
+    min-height: 1.1em;
+}
+
+/* Password strength — reuse existing styles but add colour variants */
+.password-strength-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--amber-dim);
-    border-left: 3px solid var(--amber);
-    border-radius: var(--radius);
-    font-size: 0.85rem;
+    gap: 10px;
+    margin-top: 8px;
+}
+.password-strength-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border-base);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.password-strength-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .3s ease, background .3s ease;
+}
+.strength-weak   { background: #ff6b6b; }
+.strength-fair   { background: #ffa94d; }
+.strength-good   { background: #69db7c; }
+.strength-strong { background: var(--cyan); }
+.password-strength-label {
+    font-size: .75rem;
     color: var(--text-2);
-    margin-top: 16px;
+    min-width: 44px;
 }
-
-.feedback-hint-inline svg {
-    color: var(--amber);
-    flex-shrink: 0;
-}
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-    .feedback-reminder-box {
-        flex-direction: column;
-        text-align: center;
-        padding: 24px 20px;
-    }
-    
-    .fbr-btn {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
