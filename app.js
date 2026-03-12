@@ -22,6 +22,21 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initApp() {
     animateLoadingBar();
 
+    // ── GUIDE STEP 3-E: Init button ripples ──
+    initButtonRipples();
+
+    // ── GUIDE STEP 3-F: Navbar scroll effect ──
+    let lastScrollY = 0;
+    window.addEventListener('scroll', () => {
+        const navbar = document.getElementById('navbar');
+        if (!navbar) return;
+        if (window.scrollY > 100) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
+
     // Check saved session
     const savedUsername = localStorage.getItem('miq_session');
 
@@ -88,11 +103,6 @@ function hideLoading(errorMsg) {
 }
 
 // ===== SIDEBAR TOGGLE =====
-// --------------------------------------------------------
-// NEW: toggleSidebar — opens/closes the left sidebar.
-// On mobile, clicking any sidebar link auto-closes it via
-// the onclick handlers on each <a> in the sidebar.
-// --------------------------------------------------------
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
@@ -103,7 +113,6 @@ function toggleSidebar() {
     const isOpen = sidebar.classList.toggle('active');
     if (overlay) overlay.classList.toggle('active', isOpen);
 
-    // Animate hamburger → X when open
     if (hamburger) {
         hamburger.classList.toggle('is-open', isOpen);
     }
@@ -144,7 +153,6 @@ function showSection(name) {
     return false;
 }
 
-// NEW: highlight the active sidebar link
 function updateSidebarActive(active) {
     document.querySelectorAll('.sidebar-link').forEach(link => {
         link.classList.toggle('active', link.dataset.section === active);
@@ -174,24 +182,17 @@ function updateMobileNav(active) {
     if (mobileNav) {
         mobileNav.style.display = currentUser ? 'flex' : 'none';
     }
-    // Show/hide sidebar footer sign-out
     const sidebarFooter = document.getElementById('sidebarFooter');
     if (sidebarFooter) {
         sidebarFooter.style.display = currentUser ? 'flex' : 'none';
     }
 }
 
-// --------------------------------------------------------
-// NEW: updateNavUser — renders either a guest "Sign In"
-// button or a profile icon button in the top-right of the
-// navbar. No text username chip — just the silhouette icon.
-// --------------------------------------------------------
 function updateNavUser() {
     const navUser = document.getElementById('navUser');
     if (!navUser) return;
 
     if (currentUser) {
-        // Show a rating badge + faceless profile icon button
         navUser.innerHTML = `
             <div class="nav-user-right">
                 <span class="nav-rating-badge mono">${currentUser.rating}</span>
@@ -207,7 +208,6 @@ function updateNavUser() {
         navUser.innerHTML = `<button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>`;
     }
 
-    // Also update sidebar footer visibility
     const sidebarFooter = document.getElementById('sidebarFooter');
     if (sidebarFooter) {
         sidebarFooter.style.display = currentUser ? 'flex' : 'none';
@@ -216,7 +216,6 @@ function updateNavUser() {
 
 // ===== PASSWORD UTILITIES =====
 
-// Simple SHA-256 hash using Web Crypto API
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password + 'miq_salt_v1');
@@ -248,19 +247,13 @@ function getPasswordStrength(password) {
     return { label: 'Strong', color: '#00e676', width: '100%' };
 }
 
-// Pending user state for password modal flow
 let _pendingModalUser = null;
 
 // ===== LOGIN =====
 // ===== MULTI-STEP AUTH FLOW =====
 
-// Tracks the pending username during registration
 let _pendingRegUsername = null;
 
-/**
- * Switch between auth steps with a smooth fade transition.
- * stepName: 'gate' | 'login' | 'register-username' | 'register-password'
- */
 function showAuthStep(stepName) {
     const map = {
         'gate':              'authGate',
@@ -272,22 +265,17 @@ function showAuthStep(stepName) {
     const target = document.getElementById(map[stepName]);
     if (target) {
         target.classList.add('active');
-        // Auto-focus the first input in the new step
         setTimeout(() => {
             const first = target.querySelector('input');
             if (first) first.focus();
         }, 80);
     }
-    // Clear errors on step change
     ['regUsernameError','regPasswordError'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '';
     });
 }
 
-/**
- * Step 1 of Registration: validate username format then check Firestore availability.
- */
 async function handleCheckUsername(event) {
     event.preventDefault();
     const input   = document.getElementById('regUsernameInput');
@@ -297,7 +285,6 @@ async function handleCheckUsername(event) {
 
     errEl.textContent = '';
 
-    // Client-side validation
     if (username.length < 3) { errEl.textContent = 'Username must be at least 3 characters.'; return; }
     if (username.length > 20) { errEl.textContent = 'Username must be 20 characters or fewer.'; return; }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -315,7 +302,6 @@ async function handleCheckUsername(event) {
             input.focus();
             input.select();
         } else {
-            // Available! Store pending username and move to password step
             _pendingRegUsername = username;
             const confirm = document.getElementById('regUsernameConfirm');
             if (confirm) confirm.textContent = username;
@@ -330,9 +316,6 @@ async function handleCheckUsername(event) {
     }
 }
 
-/**
- * Step 2 of Registration: set password and create the Firestore account.
- */
 async function handleRegister(event) {
     event.preventDefault();
     const password  = document.getElementById('regPasswordInput').value;
@@ -344,14 +327,25 @@ async function handleRegister(event) {
     errEl.textContent = '';
 
     if (!username) { showAuthStep('register-username'); return; }
-    if (password.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; return; }
-    if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
+    if (password.length < 4) {
+        errEl.textContent = 'Password must be at least 4 characters.';
+        // ── GUIDE STEP 3-G: Shake on error ──
+        const input = document.getElementById('regPasswordInput');
+        if (input && window.animations) animations.shake(input);
+        return;
+    }
+    if (password !== confirm) {
+        errEl.textContent = 'Passwords do not match.';
+        // ── GUIDE STEP 3-G: Shake on error ──
+        const input = document.getElementById('regConfirmPasswordInput');
+        if (input && window.animations) animations.shake(input);
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = 'Creating account...';
 
     try {
-        // Double-check the username wasn't taken between steps
         const snapCheck = await db.collection(USERS_COL).doc(username).get();
         if (snapCheck.exists) {
             showToast(`"${username}" was just taken. Please choose another username.`, 'error');
@@ -376,9 +370,6 @@ async function handleRegister(event) {
     }
 }
 
-/**
- * Password strength indicator for registration step.
- */
 function updateRegPasswordStrength(value) {
     const wrap  = document.getElementById('regStrengthWrap');
     const bar   = document.getElementById('regStrengthBar');
@@ -413,7 +404,13 @@ async function handleLogin(event) {
     const password = document.getElementById('passwordInput').value;
 
     if (!username) return;
-    if (username.length < 3) { showToast("Username must be at least 3 characters.", 'error'); return; }
+    if (username.length < 3) {
+        showToast("Username must be at least 3 characters.", 'error');
+        // ── GUIDE STEP 3-G: Shake on error ──
+        const input = document.getElementById('usernameInput');
+        if (input && window.animations) animations.shake(input);
+        return;
+    }
 
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
@@ -429,7 +426,12 @@ async function handleLogin(event) {
             if (userData.passwordHash) {
                 if (!password) {
                     showToast("Please enter your password.", 'error');
-                    document.getElementById('passwordInput').focus();
+                    const pwInput = document.getElementById('passwordInput');
+                    if (pwInput) {
+                        pwInput.focus();
+                        // ── GUIDE STEP 3-G: Shake on error ──
+                        if (window.animations) animations.shake(pwInput);
+                    }
                     btn.disabled = false;
                     btn.textContent = "Sign In";
                     return;
@@ -437,8 +439,13 @@ async function handleLogin(event) {
                 const inputHash = await hashPassword(password);
                 if (inputHash !== userData.passwordHash) {
                     showToast("Incorrect password. Try again.", 'error');
-                    document.getElementById('passwordInput').value = '';
-                    document.getElementById('passwordInput').focus();
+                    const pwInput = document.getElementById('passwordInput');
+                    if (pwInput) {
+                        pwInput.value = '';
+                        pwInput.focus();
+                        // ── GUIDE STEP 3-G: Shake on error ──
+                        if (window.animations) animations.shake(pwInput);
+                    }
                     btn.disabled = false;
                     btn.textContent = "Sign In";
                     return;
@@ -448,7 +455,6 @@ async function handleLogin(event) {
                 finalizeLogin(username);
 
             } else {
-                // Legacy account (no password) — force password creation
                 currentUser = userData;
                 finalizeLogin(username, false);
                 handleLegacyPassword(userData, ref, username);
@@ -456,6 +462,9 @@ async function handleLogin(event) {
 
         } else {
             showToast("No account found with that username. Create one instead?", 'error');
+            // ── GUIDE STEP 3-G: Shake on error ──
+            const input = document.getElementById('usernameInput');
+            if (input && window.animations) animations.shake(input);
             btn.disabled = false;
             btn.textContent = "Sign In";
         }
@@ -485,7 +494,6 @@ function buildNewUser(username) {
 }
 
 function finalizeLogin(username, showModal = true) {
-    // NEW: clear all auth inputs and reset to gate
     _pendingRegUsername = null;
     localStorage.setItem('miq_session', username);
     updateNavUser();
@@ -496,14 +504,12 @@ function finalizeLogin(username, showModal = true) {
     document.getElementById('passwordInput').value = '';
     const btn = document.getElementById('loginBtn');
     btn.disabled = false;
-    btn.disabled = false; btn.textContent = "Sign In";
-    // Reset auth step to gate
+    btn.textContent = "Sign In";
     showAuthStep("gate");
 }
 
 // ===== SET PASSWORD MODAL =====
 
-// Tracks whether the modal is in "forced" mode (cannot be dismissed)
 let _modalForced = false;
 
 function openSetPasswordModal(forced = false) {
@@ -514,9 +520,8 @@ function openSetPasswordModal(forced = false) {
     document.getElementById('newPasswordInput').focus();
 }
 
-// Backdrop click — only dismissable when not in forced mode
 function closeSetPasswordModal(event) {
-    if (_modalForced) return; // cannot dismiss mandatory modal
+    if (_modalForced) return;
     if (event && event.target !== document.getElementById('setPasswordModal')) return;
     _pendingModalUser = null;
     _closeModal();
@@ -530,7 +535,6 @@ function _closeModal() {
     document.getElementById('newPasswordInput').removeEventListener('input', onNewPasswordInput);
 }
 
-// ── LEGACY PASSWORD HANDLER ──
 function handleLegacyPassword(userData, ref, username) {
     _pendingModalUser = { userData, ref, username, isNew: false, isLegacy: true };
 
@@ -565,8 +569,16 @@ async function confirmSetPassword() {
     const newPw  = document.getElementById('newPasswordInput').value;
     const confPw = document.getElementById('confirmPasswordInput').value;
 
-    if (newPw.length < 4) { showToast("Password must be at least 4 characters.", 'error'); return; }
-    if (newPw !== confPw) { showToast("Passwords don't match.", 'error'); return; }
+    if (newPw.length < 4) {
+        showToast("Password must be at least 4 characters.", 'error');
+        if (window.animations) animations.shake(document.getElementById('newPasswordInput'));
+        return;
+    }
+    if (newPw !== confPw) {
+        showToast("Passwords don't match.", 'error');
+        if (window.animations) animations.shake(document.getElementById('confirmPasswordInput'));
+        return;
+    }
 
     const btn = document.getElementById('setPasswordBtn');
     btn.disabled = true;
@@ -602,7 +614,6 @@ function logout() {
     updateNavUser();
     updateMobileNav('login');
     document.getElementById('mobileNav').style.display = 'none';
-    // Close sidebar if open
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     if (sidebar) sidebar.classList.remove('active');
@@ -629,14 +640,38 @@ function changePassword() {
     if (strengthWrap) strengthWrap.style.display = 'none';
 
     document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
-    openSetPasswordModal(false /* not forced — user can navigate away */);
+    openSetPasswordModal(false);
 }
 
 // ===== HOME STATS =====
 function updateHomeStats() {
     if (!currentUser) return;
-    setEl('userRating', currentUser.rating);
-    setEl('userAccuracy', currentUser.puzzlesSolved > 0 ? `${currentUser.accuracy}%` : '—');
+
+    // ── GUIDE STEP 3-C: Count-up animation for rating ──
+    const ratingEl = document.getElementById('userRating');
+    if (ratingEl) {
+        const oldValue = parseInt(ratingEl.textContent) || 1200;
+        if (window.animations && oldValue !== currentUser.rating) {
+            animations.countUp(ratingEl, oldValue, currentUser.rating, 1000);
+        } else {
+            ratingEl.textContent = currentUser.rating;
+        }
+    }
+
+    // ── GUIDE STEP 3-C: Count-up animation for accuracy ──
+    const accuracyEl = document.getElementById('userAccuracy');
+    if (accuracyEl && currentUser.puzzlesSolved > 0) {
+        const oldValue = parseInt(accuracyEl.textContent) || 0;
+        const newValue = currentUser.accuracy;
+        if (window.animations && oldValue !== newValue) {
+            animations.countUp(accuracyEl, oldValue, newValue, 800, (v) => Math.round(v) + '%');
+        } else {
+            accuracyEl.textContent = currentUser.accuracy + '%';
+        }
+    } else if (accuracyEl) {
+        accuracyEl.textContent = '—';
+    }
+
     setEl('userStreak', currentUser.streak);
     setEl('userPuzzles', currentUser.puzzlesSolved);
     const rem = Math.max(0, 5 - currentUser.dailyPuzzlesCompleted);
@@ -816,6 +851,26 @@ async function submitAnswer(isThrill) {
     // Update streak
     updateStreak();
 
+    // ── GUIDE STEP 3-D: Confetti on optimal, shake on poor ──
+    if (selectedOption === 'optimal' && window.animations) {
+        // Use the submit button area as anchor (it's hidden, so use the grid instead)
+        const gridEl = document.getElementById(gridId);
+        if (gridEl) {
+            animations.confetti(gridEl, {
+                count: 60,
+                colors: ['#00e5ff', '#00e676', '#ffb800', '#ff6e42'],
+                velocity: 10
+            });
+        }
+    }
+
+    if (selectedOption === 'poor' && window.animations) {
+        const grid = document.getElementById(gridId);
+        if (grid) {
+            animations.shake(grid, { intensity: 12, duration: 500 });
+        }
+    }
+
     // Save to Firestore
     try {
         await db.collection(USERS_COL).doc(currentUser.username).update({
@@ -983,8 +1038,15 @@ function startThrillCountdown() {
 function subscribeLeaderboard() {
     if (leaderboardUnsubscribe) leaderboardUnsubscribe();
 
+    // ── GUIDE STEP 3-A: Skeleton loader instead of plain text ──
     const body = document.getElementById('leaderboardBody');
-    if (body) body.innerHTML = '<div class="lb-loading">Loading rankings...</div>';
+    if (body) {
+        if (window.animations) {
+            animations.showSkeleton(body, 'leaderboard', 10);
+        } else {
+            body.innerHTML = '<div class="lb-loading">Loading rankings...</div>';
+        }
+    }
 
     const q = db.collection(USERS_COL)
         .orderBy('rating', 'desc')
@@ -1006,6 +1068,9 @@ function renderLeaderboard(docs) {
         body.innerHTML = '<div class="lb-loading">No competitors yet. Be the first!</div>';
         return;
     }
+
+    // ── GUIDE STEP 3-B: Remove skeleton class before rendering ──
+    body.classList.remove('skeleton-loading');
 
     body.innerHTML = docs.map((doc, i) => {
         const u = doc.data();
@@ -1032,6 +1097,14 @@ function renderLeaderboard(docs) {
                 </div>
             </div>`;
     }).join('');
+
+    // ── GUIDE STEP 3-B: Stagger animate rows after render ──
+    if (window.animations) {
+        setTimeout(() => {
+            const rows = body.querySelectorAll('.lb-row');
+            animations.stagger(rows, { delay: 50 });
+        }, 50);
+    }
 }
 
 // ===== PROFILE =====
@@ -1174,6 +1247,16 @@ function timeAgo(ts) {
     if (s < 3600)  return `${Math.floor(s/60)}m ago`;
     if (s < 86400) return `${Math.floor(s/3600)}h ago`;
     return `${Math.floor(s/86400)}d ago`;
+}
+
+// ===== GUIDE STEP 3-E: Ripple effect helper =====
+function initButtonRipples() {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-primary, .btn-secondary, .btn-ghost, .option-btn');
+        if (btn && !btn.disabled && window.animations) {
+            animations.ripple(btn, e);
+        }
+    });
 }
 
 
