@@ -3,34 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>MarketIQ — Test Your Market Intelligence</title>
-
 <meta name="description" content="Competitive rating system for market intelligence. Solve hypothetical market puzzles. Get rated. Climb the leaderboard.">
 
 <link rel="stylesheet" href="styles.css">
-
-<!-- NEW: Animation Styles -->
 <link rel="stylesheet" href="animations-styles.css">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-
 </head>
 
 <body>
 
 <!-- LOADING SCREEN -->
 <div id="loadingScreen" class="loading-screen">
-<div class="loading-content">
-<div class="loading-brand">MarketIQ</div>
-<div class="loading-bar-track">
-<div class="loading-bar-fill" id="loadingBarFill"></div>
-</div>
-<p class="loading-text" id="loadingText">Connecting to server...</p>
-</div>
+    <div class="loading-content">
+        <div class="loading-brand">MarketIQ</div>
+        <div class="loading-bar-track">
+            <div class="loading-bar-fill" id="loadingBarFill"></div>
+        </div>
+        <p class="loading-text" id="loadingText">Connecting to server...</p>
+    </div>
 </div>
 
 <!-- TOAST CONTAINER -->
@@ -39,234 +33,574 @@
 <!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
+<!-- SIDEBAR -->
 <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-brand" onclick="navTo('home'); closeSidebarOnMobile()">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">MarketIQ</span>
+        </div>
+        <button class="sidebar-close-btn" onclick="toggleSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+    </div>
 
-<div class="sidebar-header">
+    <nav class="sidebar-nav">
+        <a href="#" class="sidebar-link" data-section="home" onclick="return navTo('home')">
+            <span>Home</span>
+        </a>
+        <a href="#" class="sidebar-link" data-section="puzzles" onclick="return navTo('puzzles')">
+            <span>Daily Puzzles</span>
+        </a>
+        <a href="#" class="sidebar-link" data-section="thrill" onclick="return navTo('thrill')">
+            <span>Thrill Round</span>
+        </a>
+        <a href="#" class="sidebar-link" data-section="leaderboard" onclick="return navTo('leaderboard')">
+            <span>Leaderboard</span>
+        </a>
+        <a href="#" class="sidebar-link" data-section="predictions" onclick="return navTo('predictions')">
+            <span>Predictions</span>
+        </a>
+        <a href="#" class="sidebar-link" data-section="notes" onclick="return navTo('notes')">
+            <span>Notes</span>
+        </a>
+    </nav>
 
-<div class="sidebar-brand" onclick="navTo('home'); toggleSidebar()">
-<span class="brand-mark">M</span>
-<span class="brand-name">MarketIQ</span>
-</div>
-
-<button class="sidebar-close-btn" onclick="toggleSidebar()">
-
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-<line x1="18" y1="6" x2="6" y2="18"/>
-<line x1="6" y1="6" x2="18" y2="18"/>
-</svg>
-
-</button>
-
-</div>
-
-<nav class="sidebar-nav">
-
-<a href="#" class="sidebar-link" data-section="home" onclick="return navTo('home')">
-<span>Home</span>
-</a>
-
-<a href="#" class="sidebar-link" data-section="puzzles" onclick="return navTo('puzzles')">
-<span>Daily Puzzles</span>
-</a>
-
-<a href="#" class="sidebar-link" data-section="thrill" onclick="return navTo('thrill')">
-<span>Thrill Round</span>
-</a>
-
-<a href="#" class="sidebar-link" data-section="leaderboard" onclick="return navTo('leaderboard')">
-<span>Leaderboard</span>
-</a>
-
-<a href="#" class="sidebar-link" data-section="predictions" onclick="return navTo('predictions')">
-<span>Predictions</span>
-</a>
-
-<a href="#" class="sidebar-link" data-section="notes" onclick="return navTo('notes')">
-<span>Notes</span>
-</a>
-
-</nav>
-
-<div class="sidebar-footer" id="sidebarFooter" style="display:none">
-<button class="sidebar-signout-btn" onclick="logout()">Sign Out</button>
-</div>
-
+    <div class="sidebar-footer" id="sidebarFooter" style="display:none">
+        <button class="sidebar-signout-btn" onclick="logout()">Sign Out</button>
+    </div>
 </aside>
 
 <!-- NAVBAR -->
 <nav class="navbar" id="navbar">
-
-<div class="nav-container">
-
-<div class="nav-left">
-
-<button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()">
-
-<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-<line x1="3" y1="6" x2="21" y2="6"/>
-<line x1="3" y1="12" x2="21" y2="12"/>
-<line x1="3" y1="18" x2="21" y2="18"/>
-</svg>
-
-</button>
-
-<div class="nav-brand" onclick="navTo('home')">
-<span class="brand-mark">M</span>
-<span class="brand-name">MarketIQ</span>
-</div>
-
-</div>
-
-<div class="nav-user" id="navUser">
-<button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>
-</div>
-
-</div>
-
+    <div class="nav-container">
+        <div class="nav-left">
+            <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
+            <div class="nav-brand" onclick="navTo('home')">
+                <span class="brand-mark">M</span>
+                <span class="brand-name">MarketIQ</span>
+            </div>
+        </div>
+        <div class="nav-user" id="navUser">
+            <button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>
+        </div>
+    </div>
 </nav>
 
-<!-- ==================== HOME ==================== -->
-
+<!-- ==================== HOME SECTION ==================== -->
 <section id="homeSection" class="section">
+    <div class="hero-bg">
+        <div class="hero-grid" data-parallax="0.3"></div>
+        <div class="container">
+            <div class="hero">
+                <div class="hero-tag">Beta — Testing Phase</div>
+                <h1 class="hero-h1">
+                    Test Your <span class="hero-accent">Market Intelligence</span>
+                </h1>
+                <p class="hero-sub">
+                    Compete in hypothetical market puzzles. Get rated. Climb the global leaderboard.
+                </p>
+                <div class="hero-btns">
+                    <button class="btn-primary btn-large" onclick="showSection('puzzles')">
+                        Start Today's Puzzles →
+                    </button>
+                    <button class="btn-ghost btn-large" onclick="showSection('leaderboard')">
+                        View Leaderboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="hero-bg">
+    <div class="container">
+        <div class="stats-bar" data-aos="fade-up">
+            <div class="sb-label">Your Stats</div>
+            <div class="sb-items">
+                <div class="sb-item">
+                    <div class="sb-val mono" id="userRating">1200</div>
+                    <div class="sb-key">Rating</div>
+                </div>
+                <div class="sb-item">
+                    <div class="sb-val mono" id="userAccuracy">—</div>
+                    <div class="sb-key">Accuracy</div>
+                </div>
+                <div class="sb-item">
+                    <div class="sb-val mono" id="userStreak">0</div>
+                    <div class="sb-key">Streak</div>
+                </div>
+                <div class="sb-item">
+                    <div class="sb-val mono" id="userPuzzles">0</div>
+                    <div class="sb-key">Puzzles</div>
+                </div>
+            </div>
+        </div>
 
-<!-- PARALLAX ADDED -->
-<div class="hero-grid" data-parallax="0.3"></div>
+        <div class="quick-actions" data-aos="fade-up" data-aos-delay="100">
+            <div class="qa-card" onclick="showSection('puzzles')">
+                <h3>Daily Puzzles</h3>
+                <p>5 structured scenarios per day.</p>
+            </div>
+            <div class="qa-card thrill-qa" onclick="showSection('thrill')">
+                <h3>Thrill Round</h3>
+                <p>60 seconds high-pressure challenge.</p>
+            </div>
+        </div>
 
-<div class="container">
-
-<div class="hero">
-
-<div class="hero-tag">Beta — Testing Phase</div>
-
-<h1 class="hero-h1">
-Test Your <span class="hero-accent">Market Intelligence</span>
-</h1>
-
-<p class="hero-sub">
-Compete in hypothetical market puzzles. Get rated. Climb the global leaderboard.
-</p>
-
-<div class="hero-btns">
-<button class="btn-primary btn-large" onclick="showSection('puzzles')">
-Start Today's Puzzles →
-</button>
-
-<button class="btn-ghost btn-large" onclick="showSection('leaderboard')">
-View Leaderboard
-</button>
-</div>
-
-</div>
-</div>
-</div>
-
-<div class="container">
-
-<!-- STATS BAR WITH SCROLL ANIMATION -->
-
-<div class="stats-bar" data-aos="fade-up">
-
-<div class="sb-label">Your Stats</div>
-
-<div class="sb-items">
-
-<div class="sb-item">
-<div class="sb-val mono" id="userRating">1200</div>
-<div class="sb-key">Rating</div>
-</div>
-
-<div class="sb-item">
-<div class="sb-val mono" id="userAccuracy">—</div>
-<div class="sb-key">Accuracy</div>
-</div>
-
-<div class="sb-item">
-<div class="sb-val mono" id="userStreak">0</div>
-<div class="sb-key">Streak</div>
-</div>
-
-<div class="sb-item">
-<div class="sb-val mono" id="userPuzzles">0</div>
-<div class="sb-key">Puzzles</div>
-</div>
-
-</div>
-</div>
-
-<!-- QUICK ACTIONS -->
-
-<div class="quick-actions" data-aos="fade-up" data-aos-delay="100">
-
-<div class="qa-card" onclick="showSection('puzzles')">
-<h3>Daily Puzzles</h3>
-<p>5 structured scenarios per day.</p>
-</div>
-
-<div class="qa-card thrill-qa" onclick="showSection('thrill')">
-<h3>Thrill Round</h3>
-<p>60 seconds high-pressure challenge.</p>
-</div>
-
-</div>
-
-<!-- HOW IT WORKS -->
-
-<div class="section-block">
-
-<h2 class="block-title">How It Works</h2>
-
-<div class="how-grid">
-
-<div class="how-card" data-aos="fade-up" data-aos-delay="100">
-<div class="how-num">01</div>
-<h3>Analyze</h3>
-<p>Study the market scenario.</p>
-</div>
-
-<div class="how-card" data-aos="fade-up" data-aos-delay="200">
-<div class="how-num">02</div>
-<h3>Decide</h3>
-<p>Choose the best decision.</p>
-</div>
-
-<div class="how-card" data-aos="fade-up" data-aos-delay="300">
-<div class="how-num">03</div>
-<h3>Rating Updates</h3>
-<p>Your rating updates instantly.</p>
-</div>
-
-<div class="how-card" data-aos="fade-up" data-aos-delay="400">
-<div class="how-num">04</div>
-<h3>Compete</h3>
-<p>Climb the leaderboard.</p>
-</div>
-
-</div>
-</div>
-
-</div>
+        <div class="section-block">
+            <h2 class="block-title">How It Works</h2>
+            <div class="how-grid">
+                <div class="how-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="how-num">01</div>
+                    <h3>Analyze</h3>
+                    <p>Study the market scenario.</p>
+                </div>
+                <div class="how-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="how-num">02</div>
+                    <h3>Decide</h3>
+                    <p>Choose the best decision.</p>
+                </div>
+                <div class="how-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="how-num">03</div>
+                    <h3>Rating Updates</h3>
+                    <p>Your rating updates instantly.</p>
+                </div>
+                <div class="how-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="how-num">04</div>
+                    <h3>Compete</h3>
+                    <p>Climb the leaderboard.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
 
-<!-- OTHER SECTIONS REMAIN UNCHANGED -->
+<!-- ==================== LOGIN SECTION ==================== -->
+<section id="loginSection" class="section">
+    <div class="container">
+        <div class="auth-container">
+            <!-- GATE STEP -->
+            <div id="authGate" class="auth-step active">
+                <div class="auth-header">
+                    <h2>Welcome to MarketIQ</h2>
+                    <p>Choose an option to continue</p>
+                </div>
+                <div class="auth-gate-btns">
+                    <button class="btn-primary btn-large" onclick="showAuthStep('login')">
+                        Sign In
+                    </button>
+                    <button class="btn-secondary btn-large" onclick="showAuthStep('register-username')">
+                        Create Account
+                    </button>
+                </div>
+            </div>
+
+            <!-- LOGIN STEP -->
+            <div id="authLogin" class="auth-step">
+                <div class="auth-header">
+                    <h2>Sign In</h2>
+                    <p>Enter your credentials</p>
+                </div>
+                <form onsubmit="handleLogin(event)" class="auth-form">
+                    <div class="form-group">
+                        <label for="usernameInput">Username</label>
+                        <input type="text" id="usernameInput" class="form-input" placeholder="Enter your username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="passwordInput">Password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="passwordInput" class="form-input" placeholder="Enter your password" autocomplete="current-password">
+                            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('passwordInput', this)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="display:none">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                    <line x1="1" y1="1" x2="23" y2="23"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary btn-large" id="loginBtn">Sign In</button>
+                </form>
+                <div class="auth-footer">
+                    <button class="auth-link-btn" onclick="showAuthStep('gate')">← Back</button>
+                </div>
+            </div>
+
+            <!-- REGISTER USERNAME STEP -->
+            <div id="authRegisterUsername" class="auth-step">
+                <div class="auth-header">
+                    <h2>Create Account</h2>
+                    <p>Choose a unique username</p>
+                </div>
+                <form onsubmit="handleCheckUsername(event)" class="auth-form">
+                    <div class="form-group">
+                        <label for="regUsernameInput">Username</label>
+                        <input type="text" id="regUsernameInput" class="form-input" placeholder="Choose your username" required autocomplete="username">
+                        <div class="form-hint">3-20 characters, letters, numbers, and underscores only</div>
+                        <div class="form-error" id="regUsernameError"></div>
+                    </div>
+                    <button type="submit" class="btn-primary btn-large" id="checkUsernameBtn">Check Availability →</button>
+                </form>
+                <div class="auth-footer">
+                    <button class="auth-link-btn" onclick="showAuthStep('gate')">← Back</button>
+                </div>
+            </div>
+
+            <!-- REGISTER PASSWORD STEP -->
+            <div id="authRegisterPassword" class="auth-step">
+                <div class="auth-header">
+                    <h2>Set Password</h2>
+                    <p>Create a password for <strong id="regUsernameConfirm"></strong></p>
+                </div>
+                <form onsubmit="handleRegister(event)" class="auth-form">
+                    <div class="form-group">
+                        <label for="regPasswordInput">Password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="regPasswordInput" class="form-input" placeholder="Enter password" required autocomplete="new-password" oninput="updateRegPasswordStrength(this.value)">
+                            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('regPasswordInput', this)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="display:none">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                    <line x1="1" y1="1" x2="23" y2="23"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="regStrengthWrap" class="password-strength-wrap" style="display:none">
+                            <div id="regStrengthBar" class="password-strength-bar"></div>
+                        </div>
+                        <div id="regStrengthLabel" class="password-strength-label"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="regConfirmPasswordInput">Confirm Password</label>
+                        <input type="password" id="regConfirmPasswordInput" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
+                    </div>
+                    <div class="form-error" id="regPasswordError"></div>
+                    <button type="submit" class="btn-primary btn-large" id="registerBtn">Create Account & Start Competing</button>
+                </form>
+                <div class="auth-footer">
+                    <button class="auth-link-btn" onclick="showAuthStep('register-username')">← Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SET PASSWORD MODAL -->
+<div id="setPasswordModal" class="modal-overlay" onclick="closeSetPasswordModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h2 id="setPasswordTitle">Set Password</h2>
+        <p id="setPasswordSubtitle">Create a password for your account</p>
+        <div class="form-group">
+            <label for="newPasswordInput">New Password</label>
+            <input type="password" id="newPasswordInput" class="form-input" placeholder="Enter new password">
+            <div id="passwordStrengthWrap" class="password-strength-wrap" style="display:none">
+                <div id="passwordStrengthBar" class="password-strength-bar"></div>
+            </div>
+            <div id="passwordStrengthLabel" class="password-strength-label"></div>
+        </div>
+        <div class="form-group">
+            <label for="confirmPasswordInput">Confirm Password</label>
+            <input type="password" id="confirmPasswordInput" class="form-input" placeholder="Re-enter password">
+        </div>
+        <button class="btn-primary btn-large" id="setPasswordBtn" onclick="confirmSetPassword()">Set Password</button>
+    </div>
+</div>
+
+<!-- ==================== PUZZLES SECTION ==================== -->
+<section id="puzzlesSection" class="section">
+    <div class="container">
+        <div class="section-header">
+            <h1>Daily Puzzles</h1>
+            <p id="puzzlesRemaining">5 remaining</p>
+        </div>
+        <div class="puzzle-progress">
+            <span class="progress-dot" id="dot0"></span>
+            <span class="progress-dot" id="dot1"></span>
+            <span class="progress-dot" id="dot2"></span>
+            <span class="progress-dot" id="dot3"></span>
+            <span class="progress-dot" id="dot4"></span>
+        </div>
+        <div id="puzzleContainer" class="puzzle-wrapper"></div>
+        <div id="noPuzzlesMessage" class="no-puzzles-card" style="display:none">
+            <h2>All Puzzles Complete! 🎉</h2>
+            <p>You've completed all 5 daily puzzles. Check back tomorrow for new challenges!</p>
+            <button class="btn-primary" onclick="showSection('home')">Back to Home</button>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== THRILL SECTION ==================== -->
+<section id="thrillSection" class="section">
+    <div class="container">
+        <div class="section-header">
+            <h1>Thrill Round</h1>
+            <p>High-stakes, time-limited challenge</p>
+        </div>
+        <div id="thrillStatus"></div>
+        <div id="thrillPuzzleContainer" class="puzzle-wrapper"></div>
+    </div>
+</section>
+
+<!-- ==================== LEADERBOARD SECTION ==================== -->
+<section id="leaderboardSection" class="section">
+    <div class="container">
+        <div class="section-header">
+            <h1>Global Leaderboard</h1>
+            <p>Top 20 competitors worldwide</p>
+        </div>
+        <div class="leaderboard-card">
+            <div class="lb-header">
+                <div class="lbc rank">Rank</div>
+                <div class="lbc username">Player</div>
+                <div class="lbc rating">Rating</div>
+                <div class="lbc accuracy">Accuracy</div>
+                <div class="lbc puzzles">Puzzles</div>
+            </div>
+            <div id="leaderboardBody" class="lb-body"></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== PROFILE SECTION ==================== -->
+<section id="profileSection" class="section">
+    <div class="container">
+        <div class="profile-hero">
+            <div class="profile-avatar-circle" id="profileAvatar">U</div>
+            <h1 class="profile-name" id="profileUsername">Username</h1>
+            <div class="profile-rank-badge" id="profileRankBadge">#— Global Rank</div>
+        </div>
+
+        <div class="profile-stats-grid">
+            <div class="profile-stat-card">
+                <div class="profile-stat-val mono" id="profileRating">1200</div>
+                <div class="profile-stat-label">Rating</div>
+            </div>
+            <div class="profile-stat-card">
+                <div class="profile-stat-val" id="profileAccuracy">—</div>
+                <div class="profile-stat-label">Accuracy</div>
+            </div>
+            <div class="profile-stat-card">
+                <div class="profile-stat-val mono" id="profilePuzzles">0</div>
+                <div class="profile-stat-label">Puzzles Solved</div>
+            </div>
+            <div class="profile-stat-card">
+                <div class="profile-stat-val mono" id="profileStreak">0</div>
+                <div class="profile-stat-label">Day Streak</div>
+            </div>
+        </div>
+
+        <div class="profile-section-block">
+            <h2>Performance Breakdown</h2>
+            <div class="perf-bars">
+                <div class="perf-row">
+                    <div class="perf-label">
+                        <span class="perf-dot optimal"></span>
+                        Optimal <span class="perf-count" id="optimalCount">0</span>
+                    </div>
+                    <div class="perf-bar-track">
+                        <div class="perf-bar optimal" id="barOptimal" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="perf-row">
+                    <div class="perf-label">
+                        <span class="perf-dot good"></span>
+                        Good <span class="perf-count" id="goodCount">0</span>
+                    </div>
+                    <div class="perf-bar-track">
+                        <div class="perf-bar good" id="barGood" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="perf-row">
+                    <div class="perf-label">
+                        <span class="perf-dot risky"></span>
+                        Risky <span class="perf-count" id="riskyCount">0</span>
+                    </div>
+                    <div class="perf-bar-track">
+                        <div class="perf-bar risky" id="barRisky" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="perf-row">
+                    <div class="perf-label">
+                        <span class="perf-dot poor"></span>
+                        Poor <span class="perf-count" id="poorCount">0</span>
+                    </div>
+                    <div class="perf-bar-track">
+                        <div class="perf-bar poor" id="barPoor" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-section-block">
+            <h2>Recent Activity</h2>
+            <div id="recentActivity" class="activity-feed"></div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="btn-secondary" onclick="changePassword()">Change Password</button>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== PREDICTIONS SECTION ==================== -->
+<section id="predictionsSection" class="section">
+    <div class="container">
+        <div class="section-header">
+            <h1>Weekly Predictions</h1>
+            <p>Forecast market movements and track your calibration</p>
+        </div>
+
+        <div class="pred-timer-card">
+            <div class="pred-timer-label">Week closes in:</div>
+            <div class="pred-timer-val mono" id="predTimeRemaining">—</div>
+        </div>
+
+        <!-- FORECAST VIEW -->
+        <div id="predForecastView" style="display:none">
+            <div class="pred-intro">
+                <p>Answer 3 market prediction questions for this week. Move the sliders to indicate your confidence level (0% = very unlikely, 100% = very likely).</p>
+            </div>
+            <div id="predQuestionsContainer"></div>
+            <div class="pred-submit-wrap">
+                <div class="pred-submit-hint">Adjust all three sliders to enable submission</div>
+                <button class="btn-primary btn-large" id="predSubmitBtn" onclick="submitPredictions()" disabled>
+                    Submit Forecasts <span class="btn-arrow">→</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- RESULTS VIEW -->
+        <div id="predResultsView" style="display:none">
+            <div class="pred-results-header">
+                <h2>Your Predictions vs The Crowd</h2>
+                <p>See how your forecasts compare with other participants</p>
+            </div>
+            <div id="predResultsContainer"></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== NOTES SECTION ==================== -->
+<section id="notesSection" class="section">
+    <div class="container">
+        <!-- CHAPTER VIEW -->
+        <div id="notesChapterView">
+            <div class="section-header">
+                <h1>Learning Center</h1>
+                <p>Interactive lessons on market fundamentals and technical analysis</p>
+            </div>
+            <div class="notes-chapters-grid">
+                <div class="notes-chapter-card" onclick="openChapter('fundamentals')">
+                    <div class="notes-chapter-icon">📊</div>
+                    <h3>Stock Market Fundamentals</h3>
+                    <p>Learn the basics: what stocks are, how markets work, and key concepts.</p>
+                    <div class="notes-chapter-footer">
+                        <span class="notes-chapter-badge">8 slides</span>
+                        <button class="btn-ghost btn-sm">Start Learning →</button>
+                    </div>
+                </div>
+                <div class="notes-chapter-card" onclick="openChapter('technical')">
+                    <div class="notes-chapter-icon">📈</div>
+                    <h3>Technical Analysis Basics</h3>
+                    <p>Master chart reading, patterns, indicators, and price action.</p>
+                    <div class="notes-chapter-footer">
+                        <span class="notes-chapter-badge">7 slides</span>
+                        <button class="btn-ghost btn-sm">Start Learning →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LESSON VIEW -->
+        <div id="notesLessonView" style="display:none">
+            <div class="notes-lesson-header">
+                <button class="notes-back-btn" onclick="closeLesson()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                    Back to Chapters
+                </button>
+                <div class="notes-slide-counter">
+                    <span id="notesSlideNum">1</span> / <span id="notesTotalSlides">8</span>
+                </div>
+            </div>
+
+            <div class="notes-slide-wrapper" id="notesSlideWrapper"></div>
+
+            <div class="notes-progress-dots" id="notesProgressDots"></div>
+
+            <div class="notes-nav-btns">
+                <button class="btn-ghost" id="notesPrevBtn" onclick="previousSlide()" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                    Previous
+                </button>
+                <button class="btn-primary" id="notesNextBtn" onclick="nextSlide()">
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav" id="mobileNav" style="display:none">
+    <button class="mnav-btn" data-section="home" onclick="navTo('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>Home</span>
+    </button>
+    <button class="mnav-btn" data-section="puzzles" onclick="navTo('puzzles')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+        </svg>
+        <span>Puzzles</span>
+    </button>
+    <button class="mnav-btn" data-section="leaderboard" onclick="navTo('leaderboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 11l-4-4-4 4M12 7v10"/>
+        </svg>
+        <span>Leaderboard</span>
+    </button>
+    <button class="mnav-btn" data-section="profile" onclick="navTo('profile')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/>
+        </svg>
+        <span>Profile</span>
+    </button>
+</nav>
 
 <!-- SCRIPTS -->
-
-<!-- TradingView Charts -->
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
-<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-<!-- NEW ANIMATION ENGINE -->
+<!-- NEW: Animation Engine (load BEFORE app.js) -->
 <script src="animations.js"></script>
 
-<!-- Existing scripts -->
 <script src="firebase-config.js"></script>
 <script src="puzzles.js"></script>
 <script src="app.js"></script>
