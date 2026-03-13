@@ -1,1724 +1,392 @@
 // ============================================================
-//  MARKETIQ — Main Application Logic
-//  Firebase Firestore + Full Game Logic + Week 1 Animations
+//  MARKETIQ — Professional Animation Engine
+//  Production-grade animations, micro-interactions, particle systems
 // ============================================================
 
-// ===== STATE =====
-let currentUser   = null;
-let currentPuzzle = null;
-let selectedOption = null;
-let thrillTimer    = null;
-let thrillRemaining = 60;
-let leaderboardUnsubscribe = null;
+class AnimationEngine {
+    constructor() {
+        this.particles = [];
+        this.observers = new Map();
+        this.initialized = false;
+    }
 
-// ===== FIRESTORE COLLECTION =====
-const USERS_COL = "users";
+    init() {
+        if (this.initialized) return;
+        this.setupIntersectionObservers();
+        this.setupScrollAnimations();
+        this.initialized = true;
+    }
 
-// ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-});
+    // ============================================================
+    //  CONFETTI SYSTEM — Celebration particles
+    // ============================================================
+    confetti(target, options = {}) {
+        const {
+            count = 50,
+            colors = ['#00e5ff', '#00e676', '#ffb800', '#ff6e42'],
+            velocity = 8,
+            spread = 120,
+            gravity = 0.4
+        } = options;
 
-async function initApp() {
-    animateLoadingBar();
+        const rect = target.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
 
-    // ── Init button ripples ──
-    initButtonRipples();
+        for (let i = 0; i < count; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'confetti-particle';
+            
+            const angle = (Math.random() * spread - spread / 2) * (Math.PI / 180);
+            const speed = velocity * (0.5 + Math.random() * 0.5);
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed - (velocity * 0.5);
+            
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const size = 6 + Math.random() * 4;
+            const rotation = Math.random() * 360;
+            const rotationSpeed = (Math.random() - 0.5) * 20;
 
-    // ── Navbar scroll effect ──
-    window.addEventListener('scroll', () => {
-        const navbar = document.getElementById('navbar');
-        if (!navbar) return;
-        if (window.scrollY > 100) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
+            particle.style.cssText = `
+                position: fixed;
+                left: ${centerX}px;
+                top: ${centerY}px;
+                width: ${size}px;
+                height: ${size}px;
+                background: ${color};
+                border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+                transform: rotate(${rotation}deg);
+                pointer-events: none;
+                z-index: 10000;
+            `;
+
+            document.body.appendChild(particle);
+
+            this.animateParticle(particle, { vx, vy, rotationSpeed, gravity });
         }
-    });
-
-    // Check saved session
-    const savedUsername = localStorage.getItem('miq_session');
-
-    if (savedUsername) {
-        try {
-            const snap = await db.collection(USERS_COL).doc(savedUsername).get();
-            if (snap.exists) {
-                const userData = snap.data();
-                currentUser = userData;
-
-                if (!userData.passwordHash) {
-                    hideLoading();
-                    showSection('home');
-                    updateNavUser();
-                    updateMobileNav('home');
-                    handleLegacyPassword(userData, db.collection(USERS_COL).doc(savedUsername), savedUsername);
-                } else {
-                    hideLoading();
-                    showSection('home');
-                    updateNavUser();
-                    updateMobileNav('home');
-                }
-            } else {
-                localStorage.removeItem('miq_session');
-                hideLoading();
-                showSection('login');
-            }
-        } catch (err) {
-            console.error("Error restoring session:", err);
-            hideLoading("Connection error — check your Firebase setup");
-            showSection('login');
-        }
-    } else {
-        hideLoading();
-        showSection('login');
-    }
-}
-
-function animateLoadingBar() {
-    const fill = document.getElementById('loadingBarFill');
-    const text = document.getElementById('loadingText');
-    if (!fill) return;
-    let msgs = ["Connecting to server...", "Loading leaderboard...", "Almost ready..."];
-    let i = 0;
-    let interval = setInterval(() => {
-        i++;
-        if (i < msgs.length && text) text.textContent = msgs[i];
-        if (i >= msgs.length) clearInterval(interval);
-    }, 500);
-}
-
-function hideLoading(errorMsg) {
-    const screen = document.getElementById('loadingScreen');
-    if (!screen) return;
-    if (errorMsg) {
-        const text = document.getElementById('loadingText');
-        if (text) text.textContent = errorMsg;
-        setTimeout(() => screen.classList.add('hidden'), 1500);
-    } else {
-        setTimeout(() => screen.classList.add('hidden'), 300);
-    }
-}
-
-// ===== SIDEBAR TOGGLE =====
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    const hamburger = document.getElementById('hamburgerBtn');
-
-    if (!sidebar) return;
-
-    const isOpen = sidebar.classList.toggle('active');
-    if (overlay) overlay.classList.toggle('active', isOpen);
-    if (hamburger) hamburger.classList.toggle('is-open', isOpen);
-}
-
-function closeSidebarOnMobile() {
-    if (window.innerWidth < 1024) {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const hamburger = document.getElementById('hamburgerBtn');
-        if (sidebar) sidebar.classList.remove('active');
-        if (overlay) overlay.classList.remove('active');
-        if (hamburger) hamburger.classList.remove('is-open');
-    }
-}
-
-// ===== NAVIGATION =====
-function showSection(name) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    const el = document.getElementById(name + 'Section');
-    if (el) el.classList.add('active');
-
-    updateMobileNav(name);
-    updateSidebarActive(name);
-
-    if (name === 'home')        { updateHomeStats(); }
-    if (name === 'puzzles')     { loadDailyPuzzle(); }
-    if (name === 'thrill')      { loadThrillStatus(); }
-    if (name === 'leaderboard') { subscribeLeaderboard(); }
-    if (name === 'profile')     { renderProfile(); }
-    if (name === 'predictions') { loadPredictions(); }
-    if (name !== 'leaderboard' && leaderboardUnsubscribe) {
-        leaderboardUnsubscribe();
-        leaderboardUnsubscribe = null;
-    }
-    return false;
-}
-
-function updateSidebarActive(active) {
-    document.querySelectorAll('.sidebar-link').forEach(link => {
-        link.classList.toggle('active', link.dataset.section === active);
-    });
-}
-
-function navTo(section) {
-    if (!currentUser && !['login', 'leaderboard'].includes(section)) {
-        showToast("Sign in first to access this section.", 'info');
-        showSection('login');
-        closeSidebarOnMobile();
-        return false;
-    }
-    showSection(section);
-    closeSidebarOnMobile();
-    return false;
-}
-
-function updateMobileNav(active) {
-    document.querySelectorAll('.mnav-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.section === active);
-    });
-    const mobileNav = document.getElementById('mobileNav');
-    if (mobileNav) {
-        mobileNav.style.display = currentUser ? 'flex' : 'none';
-    }
-    const sidebarFooter = document.getElementById('sidebarFooter');
-    if (sidebarFooter) {
-        sidebarFooter.style.display = currentUser ? 'flex' : 'none';
-    }
-}
-
-function updateNavUser() {
-    const navUser = document.getElementById('navUser');
-    if (!navUser) return;
-
-    if (currentUser) {
-        navUser.innerHTML = `
-            <div class="nav-user-right">
-                <span class="nav-rating-badge mono">${currentUser.rating}</span>
-                <span class="nav-username">${currentUser.username}</span>
-                <button class="nav-profile-btn" onclick="navTo('profile')" title="View Profile" aria-label="Profile">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" width="22" height="22">
-                        <circle cx="12" cy="8" r="4"/>
-                        <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/>
-                    </svg>
-                </button>
-            </div>`;
-    } else {
-        navUser.innerHTML = `<button class="btn-primary btn-sm" onclick="showSection('login')">Sign In</button>`;
     }
 
-    const sidebarFooter = document.getElementById('sidebarFooter');
-    if (sidebarFooter) {
-        sidebarFooter.style.display = currentUser ? 'flex' : 'none';
-    }
-}
+    animateParticle(particle, { vx, vy, rotationSpeed, gravity }) {
+        let x = 0, y = 0, velocityY = vy, rotation = 0;
+        let opacity = 1;
+        const startTime = Date.now();
+        const duration = 1500;
 
-// ===== PASSWORD UTILITIES =====
-async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password + 'miq_salt_v1');
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
 
-function togglePasswordVisibility(inputId, btn) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    const isHidden = input.type === 'password';
-    input.type = isHidden ? 'text' : 'password';
-    const svgs = btn.querySelectorAll('svg');
-    svgs[0].style.display = isHidden ? 'none' : '';
-    svgs[1].style.display = isHidden ? '' : 'none';
-}
-
-function getPasswordStrength(password) {
-    let score = 0;
-    if (password.length >= 8)  score++;
-    if (password.length >= 12) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-    if (score <= 1) return { label: 'Weak', color: '#ff4560', width: '25%' };
-    if (score <= 2) return { label: 'Fair', color: '#ffb800', width: '50%' };
-    if (score <= 3) return { label: 'Good', color: '#3d8ef0', width: '75%' };
-    return { label: 'Strong', color: '#00e676', width: '100%' };
-}
-
-let _pendingModalUser = null;
-let _pendingRegUsername = null;
-
-// ===== AUTH FLOW =====
-function showAuthStep(stepName) {
-    const map = {
-        'gate':              'authGate',
-        'login':             'authLogin',
-        'register-username': 'authRegisterUsername',
-        'register-password': 'authRegisterPassword',
-    };
-    document.querySelectorAll('.auth-step').forEach(el => el.classList.remove('active'));
-    const target = document.getElementById(map[stepName]);
-    if (target) {
-        target.classList.add('active');
-        setTimeout(() => {
-            const first = target.querySelector('input');
-            if (first) first.focus();
-        }, 80);
-    }
-    ['regUsernameError','regPasswordError'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = '';
-    });
-}
-
-async function handleCheckUsername(event) {
-    event.preventDefault();
-    const input   = document.getElementById('regUsernameInput');
-    const errEl   = document.getElementById('regUsernameError');
-    const btn     = document.getElementById('checkUsernameBtn');
-    const username = input.value.trim();
-
-    errEl.textContent = '';
-
-    if (username.length < 3) { errEl.textContent = 'Username must be at least 3 characters.'; return; }
-    if (username.length > 20) { errEl.textContent = 'Username must be 20 characters or fewer.'; return; }
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        errEl.textContent = 'Only letters, numbers, and underscores allowed.';
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Checking...';
-
-    try {
-        const snap = await db.collection(USERS_COL).doc(username).get();
-        if (snap.exists) {
-            errEl.textContent = `"${username}" is already taken — please choose another.`;
-            input.focus();
-            input.select();
-        } else {
-            _pendingRegUsername = username;
-            const confirm = document.getElementById('regUsernameConfirm');
-            if (confirm) confirm.textContent = username;
-            showAuthStep('register-password');
-        }
-    } catch (err) {
-        console.error('Username check error:', err);
-        errEl.textContent = 'Connection failed. Check Firebase config.';
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Check Availability →';
-    }
-}
-
-async function handleRegister(event) {
-    event.preventDefault();
-    const password  = document.getElementById('regPasswordInput').value;
-    const confirm   = document.getElementById('regConfirmPasswordInput').value;
-    const errEl     = document.getElementById('regPasswordError');
-    const btn       = document.getElementById('registerBtn');
-    const username  = _pendingRegUsername;
-
-    errEl.textContent = '';
-
-    if (!username) { showAuthStep('register-username'); return; }
-    if (password.length < 4) {
-        errEl.textContent = 'Password must be at least 4 characters.';
-        const input = document.getElementById('regPasswordInput');
-        if (input && window.animations) animations.shake(input);
-        return;
-    }
-    if (password !== confirm) {
-        errEl.textContent = 'Passwords do not match.';
-        const input = document.getElementById('regConfirmPasswordInput');
-        if (input && window.animations) animations.shake(input);
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Creating account...';
-
-    try {
-        const snapCheck = await db.collection(USERS_COL).doc(username).get();
-        if (snapCheck.exists) {
-            showToast(`"${username}" was just taken. Please choose another username.`, 'error');
-            _pendingRegUsername = null;
-            showAuthStep('register-username');
-            return;
-        }
-
-        const hash    = await hashPassword(password);
-        const newUser = { ...buildNewUser(username), passwordHash: hash };
-        await db.collection(USERS_COL).doc(username).set(newUser);
-        currentUser = newUser;
-        showToast(`Welcome to MarketIQ, ${username}! Starting rating: 1200`, 'success');
-        finalizeLogin(username);
-
-    } catch (err) {
-        console.error('Registration error:', err);
-        errEl.textContent = 'Registration failed. Check Firebase config.';
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Account & Start Competing';
-    }
-}
-
-function updateRegPasswordStrength(value) {
-    const wrap  = document.getElementById('regStrengthWrap');
-    const bar   = document.getElementById('regStrengthBar');
-    const label = document.getElementById('regStrengthLabel');
-    if (!wrap) return;
-    if (!value) { wrap.style.display = 'none'; return; }
-    wrap.style.display = 'flex';
-
-    let score = 0;
-    if (value.length >= 4)  score++;
-    if (value.length >= 8)  score++;
-    if (/[A-Z]/.test(value)) score++;
-    if (/[0-9]/.test(value)) score++;
-    if (/[^a-zA-Z0-9]/.test(value)) score++;
-
-    const levels = [
-        { pct: '20%', cls: 'strength-weak',   text: 'Weak' },
-        { pct: '40%', cls: 'strength-weak',   text: 'Weak' },
-        { pct: '60%', cls: 'strength-fair',   text: 'Fair' },
-        { pct: '80%', cls: 'strength-good',   text: 'Good' },
-        { pct: '100%',cls: 'strength-strong', text: 'Strong' },
-    ];
-    const lvl = levels[Math.min(score - 1, 4)] || levels[0];
-    bar.style.width = lvl.pct;
-    bar.className   = 'password-strength-bar ' + lvl.cls;
-    label.textContent = lvl.text;
-}
-
-async function handleLogin(event) {
-    event.preventDefault();
-    const username = document.getElementById('usernameInput').value.trim();
-    const password = document.getElementById('passwordInput').value;
-
-    if (!username) return;
-    if (username.length < 3) {
-        showToast("Username must be at least 3 characters.", 'error');
-        const input = document.getElementById('usernameInput');
-        if (input && window.animations) animations.shake(input);
-        return;
-    }
-
-    const btn = document.getElementById('loginBtn');
-    btn.disabled = true;
-    btn.textContent = "Signing in...";
-
-    try {
-        const ref  = db.collection(USERS_COL).doc(username);
-        const snap = await ref.get();
-
-        if (snap.exists) {
-            const userData = snap.data();
-
-            if (userData.passwordHash) {
-                if (!password) {
-                    showToast("Please enter your password.", 'error');
-                    const pwInput = document.getElementById('passwordInput');
-                    if (pwInput) {
-                        pwInput.focus();
-                        if (window.animations) animations.shake(pwInput);
-                    }
-                    btn.disabled = false;
-                    btn.textContent = "Sign In";
-                    return;
-                }
-                const inputHash = await hashPassword(password);
-                if (inputHash !== userData.passwordHash) {
-                    showToast("Incorrect password. Try again.", 'error');
-                    const pwInput = document.getElementById('passwordInput');
-                    if (pwInput) {
-                        pwInput.value = '';
-                        pwInput.focus();
-                        if (window.animations) animations.shake(pwInput);
-                    }
-                    btn.disabled = false;
-                    btn.textContent = "Sign In";
-                    return;
-                }
-                currentUser = userData;
-                showToast(`Welcome back, ${username}! Rating: ${currentUser.rating}`, 'success');
-                finalizeLogin(username);
-
-            } else {
-                currentUser = userData;
-                finalizeLogin(username, false);
-                handleLegacyPassword(userData, ref, username);
+            if (progress >= 1) {
+                particle.remove();
+                return;
             }
 
-        } else {
-            showToast("No account found with that username. Create one instead?", 'error');
-            const input = document.getElementById('usernameInput');
-            if (input && window.animations) animations.shake(input);
-            btn.disabled = false;
-            btn.textContent = "Sign In";
-        }
-
-    } catch (err) {
-        console.error("Login error:", err);
-        showToast("Connection failed. Check Firebase config.", 'error');
-        btn.disabled = false;
-        btn.textContent = "Sign In";
-    }
-}
-
-function buildNewUser(username) {
-    return {
-        username,
-        rating: 1200,
-        puzzlesSolved: 0,
-        accuracy: 0,
-        streak: 0,
-        lastPlayedDate: null,
-        lastThrillDate: null,
-        dailyPuzzlesCompleted: 0,
-        performance: { optimal: 0, good: 0, risky: 0, poor: 0 },
-        recentActivity: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-}
-
-function finalizeLogin(username, showModal = true) {
-    _pendingRegUsername = null;
-    localStorage.setItem('miq_session', username);
-    updateNavUser();
-    updateMobileNav('home');
-    resetDailyIfNeeded();
-    showSection('home');
-    document.getElementById('usernameInput').value = '';
-    document.getElementById('passwordInput').value = '';
-    const btn = document.getElementById('loginBtn');
-    btn.disabled = false;
-    btn.textContent = "Sign In";
-    showAuthStep("gate");
-}
-
-// ===== SET PASSWORD MODAL =====
-let _modalForced = false;
-
-function openSetPasswordModal(forced = false) {
-    _modalForced = forced;
-    const modal = document.getElementById('setPasswordModal');
-    modal.style.display = 'flex';
-    setTimeout(() => modal.classList.add('modal-visible'), 10);
-    document.getElementById('newPasswordInput').focus();
-}
-
-function closeSetPasswordModal(event) {
-    if (_modalForced) return;
-    if (event && event.target !== document.getElementById('setPasswordModal')) return;
-    _pendingModalUser = null;
-    _closeModal();
-}
-
-function _closeModal() {
-    _modalForced = false;
-    const modal = document.getElementById('setPasswordModal');
-    modal.classList.remove('modal-visible');
-    setTimeout(() => { modal.style.display = 'none'; }, 250);
-    document.getElementById('newPasswordInput').removeEventListener('input', onNewPasswordInput);
-}
-
-function handleLegacyPassword(userData, ref, username) {
-    _pendingModalUser = { userData, ref, username, isNew: false, isLegacy: true };
-
-    const titleEl    = document.getElementById('setPasswordTitle');
-    const subtitleEl = document.getElementById('setPasswordSubtitle');
-    if (titleEl)    titleEl.textContent    = "Password Required";
-    if (subtitleEl) subtitleEl.textContent = "Your account needs a password to stay secure. Please create one to continue.";
-
-    document.getElementById('newPasswordInput').value     = '';
-    document.getElementById('confirmPasswordInput').value = '';
-    document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
-
-    showToast(`Welcome back, ${username}! Please set a password to continue.`, 'info');
-    openSetPasswordModal(true);
-}
-
-function onNewPasswordInput() {
-    const val = document.getElementById('newPasswordInput').value;
-    const wrap = document.getElementById('passwordStrengthWrap');
-    const bar  = document.getElementById('passwordStrengthBar');
-    const lbl  = document.getElementById('passwordStrengthLabel');
-    if (!val) { wrap.style.display = 'none'; return; }
-    wrap.style.display = 'flex';
-    const s = getPasswordStrength(val);
-    bar.style.width = s.width;
-    bar.style.background = s.color;
-    lbl.textContent = s.label;
-    lbl.style.color = s.color;
-}
-
-async function confirmSetPassword() {
-    const newPw  = document.getElementById('newPasswordInput').value;
-    const confPw = document.getElementById('confirmPasswordInput').value;
-
-    if (newPw.length < 4) {
-        showToast("Password must be at least 4 characters.", 'error');
-        if (window.animations) animations.shake(document.getElementById('newPasswordInput'));
-        return;
-    }
-    if (newPw !== confPw) {
-        showToast("Passwords don't match.", 'error');
-        if (window.animations) animations.shake(document.getElementById('confirmPasswordInput'));
-        return;
-    }
-
-    const btn = document.getElementById('setPasswordBtn');
-    btn.disabled = true;
-    btn.textContent = "Saving...";
-
-    try {
-        const hash = await hashPassword(newPw);
-        if (_pendingModalUser) {
-            await _pendingModalUser.ref.update({ passwordHash: hash });
-            if (currentUser) currentUser.passwordHash = hash;
-        }
-        _closeModal();
-        showToast("Password set! Your account is now protected.", 'success');
-        _pendingModalUser = null;
-
-        if (currentUser) {
-            updateNavUser();
-            showSection('home');
-        }
-    } catch (err) {
-        console.error("Set password error:", err);
-        showToast("Failed to save password. Try again.", 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = "Set Password";
-    }
-}
-
-function logout() {
-    if (leaderboardUnsubscribe) { leaderboardUnsubscribe(); leaderboardUnsubscribe = null; }
-    currentUser = null;
-    localStorage.removeItem('miq_session');
-    updateNavUser();
-    updateMobileNav('login');
-    document.getElementById('mobileNav').style.display = 'none';
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    if (sidebar) sidebar.classList.remove('active');
-    if (overlay) overlay.classList.remove('active');
-    showAuthStep("gate");
-    showSection("login");
-    showToast("Signed out. See you tomorrow!", 'info');
-}
-
-function changePassword() {
-    if (!currentUser) return;
-    const ref = db.collection(USERS_COL).doc(currentUser.username);
-
-    _pendingModalUser = { userData: currentUser, ref, username: currentUser.username, isNew: false, isLegacy: false };
-
-    const titleEl    = document.getElementById('setPasswordTitle');
-    const subtitleEl = document.getElementById('setPasswordSubtitle');
-    if (titleEl)    titleEl.textContent    = "Change Password";
-    if (subtitleEl) subtitleEl.textContent = "Enter a new password for your account. You can do this any time.";
-
-    document.getElementById('newPasswordInput').value     = '';
-    document.getElementById('confirmPasswordInput').value = '';
-    const strengthWrap = document.getElementById('passwordStrengthWrap');
-    if (strengthWrap) strengthWrap.style.display = 'none';
-
-    document.getElementById('newPasswordInput').addEventListener('input', onNewPasswordInput);
-    openSetPasswordModal(false);
-}
-
-// ===== HOME STATS =====
-function updateHomeStats() {
-    if (!currentUser) return;
-
-    // Count-up animation for rating
-    const ratingEl = document.getElementById('userRating');
-    if (ratingEl) {
-        const oldValue = parseInt(ratingEl.textContent) || 1200;
-        if (window.animations && oldValue !== currentUser.rating) {
-            animations.countUp(ratingEl, oldValue, currentUser.rating, 1000);
-        } else {
-            ratingEl.textContent = currentUser.rating;
-        }
-    }
-
-    // Count-up animation for accuracy
-    const accuracyEl = document.getElementById('userAccuracy');
-    if (accuracyEl && currentUser.puzzlesSolved > 0) {
-        const oldValue = parseInt(accuracyEl.textContent) || 0;
-        const newValue = currentUser.accuracy;
-        if (window.animations && oldValue !== newValue) {
-            animations.countUp(accuracyEl, oldValue, newValue, 800, (v) => Math.round(v) + '%');
-        } else {
-            accuracyEl.textContent = currentUser.accuracy + '%';
-        }
-    } else if (accuracyEl) {
-        accuracyEl.textContent = '—';
-    }
-
-    setEl('userStreak', currentUser.streak);
-    setEl('userPuzzles', currentUser.puzzlesSolved);
-    const rem = Math.max(0, 5 - currentUser.dailyPuzzlesCompleted);
-    setEl('dailyRemaining', rem);
-    updateProgressDots(currentUser.dailyPuzzlesCompleted);
-}
-
-function updateProgressDots(completed) {
-    for (let i = 0; i < 5; i++) {
-        const dot = document.getElementById('dot' + i);
-        if (!dot) continue;
-        dot.classList.remove('done', 'current');
-        if (i < completed) dot.classList.add('done');
-        else if (i === completed) dot.classList.add('current');
-    }
-}
-
-// ===== DAILY PUZZLE =====
-function resetDailyIfNeeded() {
-    if (!currentUser) return;
-    const today = todayKey();
-    if (currentUser.lastPlayedDate !== today) {
-        currentUser.dailyPuzzlesCompleted = 0;
-        currentUser.lastPlayedDate = today;
-    }
-}
-
-function loadDailyPuzzle() {
-    if (!currentUser) { showSection('login'); return; }
-    resetDailyIfNeeded();
-    updateProgressDots(currentUser.dailyPuzzlesCompleted);
-
-    const remaining = 5 - currentUser.dailyPuzzlesCompleted;
-    setEl('puzzlesRemaining', `${Math.max(0, remaining)} remaining`);
-
-    if (currentUser.dailyPuzzlesCompleted >= DAILY_PUZZLES.length) {
-        document.getElementById('puzzleContainer').style.display = 'none';
-        document.getElementById('noPuzzlesMessage').style.display = 'block';
-        return;
-    }
-
-    document.getElementById('puzzleContainer').style.display = 'block';
-    document.getElementById('noPuzzlesMessage').style.display = 'none';
-
-    currentPuzzle = DAILY_PUZZLES[currentUser.dailyPuzzlesCompleted];
-    selectedOption = null;
-    renderPuzzle(document.getElementById('puzzleContainer'), currentPuzzle, false);
-}
-
-function renderChart(data) {
-    if (!window.LightweightCharts) {
-        console.error("LightweightCharts not loaded");
-        return;
-    }
-
-    const container = document.getElementById('chartContainer');
-    if (!container) {
-        console.error("Chart container not found");
-        return;
-    }
-
-    const chart = LightweightCharts.createChart(container, {
-        width: container.clientWidth,
-        height: 320,
-        layout: {
-            background: { color: '#0f172a' },
-            textColor: '#d1d5db',
-        },
-        grid: {
-            vertLines: { color: '#1f2937' },
-            horzLines: { color: '#1f2937' },
-        },
-        crosshair: { mode: 1 },
-        rightPriceScale: { borderColor: '#374151' },
-        timeScale: { borderColor: '#374151' }
-    });
-
-    const candleSeries = chart.addCandlestickSeries();
-    candleSeries.setData(data);
-
-    window.addEventListener('resize', () => {
-        chart.applyOptions({
-            width: container.clientWidth
-        });
-    });
-}
-
-function renderPuzzle(container, puzzle, isThrill) {
-    const label = isThrill ? 'THRILL ROUND' : `Puzzle ${(currentUser.dailyPuzzlesCompleted ?? 0) + 1} of ${DAILY_PUZZLES.length}`;
-    const chartHTML = `
-    <div class="puzzle-chart">
-        <div id="chartContainer" style="width:100%; height:320px;"></div>
-    </div>
-`;
-
-    container.innerHTML = `
-        <div class="puzzle-label">${label}</div>
-        <h2 class="puzzle-title">${puzzle.title}</h2>
-        ${chartHTML}
-        <div class="puzzle-context">
-            <div class="puzzle-context-label">Context</div>
-            <p>${puzzle.context}</p>
-        </div>
-        <div class="puzzle-tf-row">
-            <span class="puzzle-tag">⏱ ${puzzle.timeframe}</span>
-        </div>
-        <div class="puzzle-question">${puzzle.question}</div>
-        <div class="options-grid" id="optGrid_${isThrill ? 'thrill' : 'daily'}">
-            ${puzzle.options.map(o => `
-                <button class="option-btn"
-                    data-quality="${o.quality}"
-                    data-id="${o.id}"
-                    onclick="selectOption(this, ${isThrill})">
-                    <span class="option-id">${o.id}</span>
-                    ${o.text}
-                </button>
-            `).join('')}
-        </div>
-        <button class="btn-primary submit-btn" id="submitBtn_${isThrill ? 'thrill' : 'daily'}"
-            onclick="submitAnswer(${isThrill})" disabled>
-            Confirm Decision
-        </button>
-        <div id="feedbackArea_${isThrill ? 'thrill' : 'daily'}"></div>
-    `;
-
-    setTimeout(() => {
-        if (puzzle.chartData) {
-            renderChart(puzzle.chartData);
-        }
-    }, 50);
-}
-
-function selectOption(btn, isThrill) {
-    const gridId = `optGrid_${isThrill ? 'thrill' : 'daily'}`;
-    document.querySelectorAll(`#${gridId} .option-btn`).forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedOption = btn.dataset.quality;
-    const submitId = `submitBtn_${isThrill ? 'thrill' : 'daily'}`;
-    const submit = document.getElementById(submitId);
-    if (submit) submit.disabled = false;
-}
-
-async function submitAnswer(isThrill) {
-    if (!selectedOption || !currentPuzzle) return;
-    if (isThrill && thrillTimer) { clearInterval(thrillTimer); thrillTimer = null; }
-
-    const gridId = `optGrid_${isThrill ? 'thrill' : 'daily'}`;
-    document.querySelectorAll(`#${gridId} .option-btn`).forEach(btn => {
-        btn.disabled = true;
-        if (btn.dataset.quality === 'optimal') btn.classList.add('reveal-optimal');
-        else if (btn.classList.contains('selected'))  btn.classList.add('reveal-wrong');
-    });
-    const submitId = `submitBtn_${isThrill ? 'thrill' : 'daily'}`;
-    const submitBtn = document.getElementById(submitId);
-    if (submitBtn) submitBtn.style.display = 'none';
-
-    const ratingDelta = isThrill ? THRILL_RATING_CHANGES[selectedOption] : RATING_CHANGES[selectedOption];
-    const isGoodChoice = selectedOption === 'optimal' || selectedOption === 'good';
-
-    currentUser.rating         += ratingDelta;
-    currentUser.puzzlesSolved  += 1;
-    currentUser.performance[selectedOption]++;
-
-    const totalGood = currentUser.performance.optimal + currentUser.performance.good;
-    currentUser.accuracy = Math.round((totalGood / currentUser.puzzlesSolved) * 100);
-
-    if (isThrill) {
-        currentUser.lastThrillDate = todayKey();
-    } else {
-        currentUser.dailyPuzzlesCompleted = Math.min((currentUser.dailyPuzzlesCompleted || 0) + 1, DAILY_PUZZLES.length);
-        currentUser.lastPlayedDate = todayKey();
-    }
-
-    updateStreak();
-
-    // Confetti on optimal, shake on poor
-    if (selectedOption === 'optimal' && window.animations) {
-        const gridEl = document.getElementById(gridId);
-        if (gridEl) {
-            animations.confetti(gridEl, {
-                count: 60,
-                colors: ['#00e5ff', '#00e676', '#ffb800', '#ff6e42'],
-                velocity: 10
-            });
-        }
-    }
-
-    if (selectedOption === 'poor' && window.animations) {
-        const grid = document.getElementById(gridId);
-        if (grid) {
-            animations.shake(grid, { intensity: 12, duration: 500 });
-        }
-    }
-
-    try {
-        await db.collection(USERS_COL).doc(currentUser.username).update({
-            rating:                 currentUser.rating,
-            puzzlesSolved:          currentUser.puzzlesSolved,
-            accuracy:               currentUser.accuracy,
-            streak:                 currentUser.streak,
-            performance:            currentUser.performance,
-            dailyPuzzlesCompleted:  currentUser.dailyPuzzlesCompleted,
-            lastPlayedDate:         currentUser.lastPlayedDate,
-            lastThrillDate:         currentUser.lastThrillDate,
-            recentActivity: firebase.firestore.FieldValue.arrayUnion({
-                puzzle:      currentPuzzle.title,
-                quality:     selectedOption,
-                ratingDelta: ratingDelta,
-                ts:          Date.now()
-            })
-        });
-    } catch (err) {
-        console.error("Firestore save error:", err);
-        showToast("Saved locally. Sync may retry.", 'warning');
-    }
-
-    updateNavUser();
-    updateProgressDots(currentUser.dailyPuzzlesCompleted);
-    setEl('dailyRemaining', Math.max(0, 5 - currentUser.dailyPuzzlesCompleted));
-
-    spawnFloatRating(ratingDelta);
-
-    const feedbackArea = document.getElementById(`feedbackArea_${isThrill ? 'thrill' : 'daily'}`);
-    renderFeedback(feedbackArea, currentPuzzle, selectedOption, ratingDelta, isThrill);
-}
-
-function renderFeedback(container, puzzle, quality, ratingDelta, isThrill) {
-    const labels = { optimal: '🎯 Optimal Decision', good: '✅ Good Choice', risky: '⚠️ Risky Move', poor: '❌ Poor Decision' };
-    const sign   = ratingDelta >= 0 ? '+' : '';
-    const cls    = ratingDelta >= 0 ? 'pos' : 'neg';
-    const nextLabel = isThrill
-        ? 'Back to Home'
-        : currentUser.dailyPuzzlesCompleted >= DAILY_PUZZLES.length ? 'View Results' : 'Next Puzzle →';
-    const nextAction = isThrill
-        ? `showSection('home')`
-        : `loadDailyPuzzle()`;
-
-    container.innerHTML = `
-        <div class="feedback-block ${quality}">
-            <div class="feedback-title">${labels[quality]}</div>
-            <div class="feedback-change ${cls}">${sign}${ratingDelta} Rating → New Rating: ${currentUser.rating}</div>
-            <p class="feedback-explanation">${puzzle.explanation[quality]}</p>
-            <button class="btn-primary" onclick="${nextAction}">${nextLabel}</button>
-        </div>
-    `;
-    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// ===== THRILL ROUND =====
-function loadThrillStatus() {
-    if (!currentUser) { showSection('login'); return; }
-    resetDailyIfNeeded();
-
-    const container = document.getElementById('thrillStatus');
-    const alreadyDone = currentUser.lastThrillDate === todayKey();
-
-    if (alreadyDone) {
-        container.innerHTML = `
-            <div class="thrill-done-card">
-                <h2>Thrill Round Complete</h2>
-                <p>You've already tackled today's thrill round. Come back tomorrow for a new high-stakes challenge.</p>
-                <button class="btn-primary" onclick="showSection('home')">Back to Home</button>
-            </div>`;
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="thrill-ready-card">
-            <h2>Ready for the Challenge?</h2>
-            <p>One high-volatility scenario. One decision. 60 seconds on the clock.</p>
-            <div class="thrill-stakes">
-                <div class="stake-box">
-                    <div class="stake-label">Optimal</div>
-                    <div class="stake-val pos">+10</div>
-                </div>
-                <div class="stake-box">
-                    <div class="stake-label">Good</div>
-                    <div class="stake-val" style="color:var(--blue)">+5</div>
-                </div>
-                <div class="stake-box">
-                    <div class="stake-label">Risky / Poor</div>
-                    <div class="stake-val neg">−5</div>
-                </div>
-            </div>
-            <button class="btn-primary btn-large" onclick="startThrillRound()" style="background:var(--orange);color:#fff">
-                Start Thrill Round
-            </button>
-        </div>`;
-    document.getElementById('thrillPuzzleContainer').innerHTML = '';
-}
-
-function startThrillRound() {
-    thrillRemaining = 60;
-    selectedOption  = null;
-
-    const puzzle = THRILL_PUZZLES[Math.floor(Math.random() * THRILL_PUZZLES.length)];
-    currentPuzzle = puzzle;
-
-    const statusEl = document.getElementById('thrillStatus');
-    const puzzleEl = document.getElementById('thrillPuzzleContainer');
-
-    statusEl.innerHTML = `
-        <div style="text-align:center; margin-bottom:24px;">
-            <div class="thrill-timer-wrap">
-                <div class="timer-circle">
-                    <svg viewBox="0 0 100 100" width="100" height="100">
-                        <circle cx="50" cy="50" r="44" class="timer-bg"/>
-                        <circle cx="50" cy="50" r="44" class="timer-prog" id="timerCircle"
-                            stroke-dasharray="276.46" stroke-dashoffset="0"/>
-                    </svg>
-                    <div class="timer-text" id="timerDisplay">60</div>
-                </div>
-            </div>
-        </div>`;
-
-    renderPuzzle(puzzleEl, puzzle, true);
-    startThrillCountdown();
-}
-
-function startThrillCountdown() {
-    const circumference = 2 * Math.PI * 44;
-
-    thrillTimer = setInterval(() => {
-        thrillRemaining--;
-
-        const timerText = document.getElementById('timerDisplay');
-        const circle    = document.getElementById('timerCircle');
-
-        if (timerText) timerText.textContent = thrillRemaining;
-        if (circle) {
-            const offset = circumference - (thrillRemaining / 60) * circumference;
-            circle.style.strokeDashoffset = offset;
-        }
-
-        if (circle) {
-            if (thrillRemaining <= 10)      circle.style.stroke = 'var(--red)';
-            else if (thrillRemaining <= 30) circle.style.stroke = 'var(--amber)';
-        }
-        if (timerText) {
-            if (thrillRemaining <= 10)      timerText.style.color = 'var(--red)';
-            else if (thrillRemaining <= 30) timerText.style.color = 'var(--amber)';
-        }
-
-        if (thrillRemaining <= 0) {
-            clearInterval(thrillTimer);
-            thrillTimer = null;
-            if (!selectedOption) selectedOption = 'poor';
-            submitAnswer(true);
-            showToast("Time's up! Auto-submitted.", 'warning');
-        }
-    }, 1000);
-}
-
-// ===== LEADERBOARD =====
-function subscribeLeaderboard() {
-    if (leaderboardUnsubscribe) leaderboardUnsubscribe();
-
-    const body = document.getElementById('leaderboardBody');
-    if (body) {
-        if (window.animations) {
-            animations.showSkeleton(body, 'leaderboard', 10);
-        } else {
-            body.innerHTML = '<div class="lb-loading">Loading rankings...</div>';
-        }
-    }
-
-    const q = db.collection(USERS_COL)
-        .orderBy('rating', 'desc')
-        .limit(20);
-
-    leaderboardUnsubscribe = q.onSnapshot(snapshot => {
-        renderLeaderboard(snapshot.docs);
-    }, err => {
-        console.error("Leaderboard error:", err);
-        if (body) body.innerHTML = '<div class="lb-loading">Error loading leaderboard.</div>';
-    });
-}
-
-function renderLeaderboard(docs) {
-    const body = document.getElementById('leaderboardBody');
-    if (!body) return;
-
-    if (docs.length === 0) {
-        body.innerHTML = '<div class="lb-loading">No competitors yet. Be the first!</div>';
-        return;
-    }
-
-    body.classList.remove('skeleton-loading');
-
-    body.innerHTML = docs.map((doc, i) => {
-        const u = doc.data();
-        const rank = i + 1;
-        const isMe = currentUser && u.username === currentUser.username;
-        const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
-
-        return `
-            <div class="lb-row ${isMe ? 'is-me' : ''}">
-                <div class="lbc rank">
-                    <span class="rank-badge ${rankClass}">#${rank}</span>
-                </div>
-                <div class="lbc username">
-                    <span class="lb-username ${isMe ? 'me' : ''}">${u.username}${isMe ? ' (you)' : ''}</span>
-                </div>
-                <div class="lbc rating">
-                    <span class="lb-rating-val">${u.rating}</span>
-                </div>
-                <div class="lbc accuracy">
-                    <span class="lb-accuracy-val">${u.accuracy}%</span>
-                </div>
-                <div class="lbc puzzles">
-                    <span class="lb-puzzles-val">${u.puzzlesSolved}</span>
-                </div>
-            </div>`;
-    }).join('');
-
-    if (window.animations) {
-        setTimeout(() => {
-            const rows = body.querySelectorAll('.lb-row');
-            animations.stagger(rows, { delay: 50 });
-        }, 50);
-    }
-}
-
-// ===== PROFILE =====
-async function renderProfile() {
-    if (!currentUser) { showSection('login'); return; }
-
-    try {
-        const snap = await db.collection(USERS_COL).doc(currentUser.username).get();
-        if (snap.exists) currentUser = snap.data();
-    } catch (err) { /* use local data */ }
-
-    const u = currentUser;
-    setEl('profileUsername', u.username);
-    setEl('profileRating', u.rating);
-    setEl('profileAccuracy', `${u.accuracy}%`);
-    setEl('profilePuzzles', u.puzzlesSolved);
-    setEl('profileStreak', u.streak);
-
-    const av = document.getElementById('profileAvatar');
-    if (av) av.textContent = u.username.charAt(0).toUpperCase();
-
-    const rankSnap = await db.collection(USERS_COL)
-        .where('rating', '>', u.rating).get().catch(() => null);
-    const rank = rankSnap ? rankSnap.size + 1 : '—';
-    setEl('profileRankBadge', `#${rank} Global Rank`);
-
-    const total = u.puzzlesSolved || 1;
-    const perf  = u.performance || {};
-    animateBar('barOptimal', perf.optimal || 0, total);
-    animateBar('barGood',    perf.good    || 0, total);
-    animateBar('barRisky',   perf.risky   || 0, total);
-    animateBar('barPoor',    perf.poor    || 0, total);
-    setEl('optimalCount', perf.optimal || 0);
-    setEl('goodCount',    perf.good    || 0);
-    setEl('riskyCount',   perf.risky   || 0);
-    setEl('poorCount',    perf.poor    || 0);
-
-    const actFeed = document.getElementById('recentActivity');
-    const activity = (u.recentActivity || []).slice().reverse().slice(0, 10);
-    if (actFeed) {
-        if (activity.length === 0) {
-            actFeed.innerHTML = '<p class="empty-activity">No activity yet. Start solving puzzles!</p>';
-        } else {
-            actFeed.innerHTML = activity.map(a => {
-                const sign  = a.ratingDelta >= 0 ? '+' : '';
-                const cls   = a.ratingDelta >= 0 ? 'pos' : 'neg';
-                const when  = timeAgo(a.ts);
-                return `
-                    <div class="activity-item">
-                        <div>
-                            <div class="act-title">${a.puzzle}</div>
-                            <div class="act-meta">${a.quality.toUpperCase()} · ${when}</div>
-                        </div>
-                        <div class="activity-result ${cls}">${sign}${a.ratingDelta}</div>
-                    </div>`;
-            }).join('');
-        }
-    }
-}
-
-function animateBar(id, count, total) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const pct = Math.round((count / total) * 100);
-    setTimeout(() => { el.style.width = pct + '%'; }, 100);
-}
-
-function updateStreak() {
-    const today     = todayKey();
-    const yesterday = yesterdayKey();
-    const last      = currentUser.lastPlayedDate;
-
-    if (!last || last === yesterday) {
-        currentUser.streak = (last === yesterday) ? (currentUser.streak || 0) + 1 : 1;
-    } else if (last !== today) {
-        currentUser.streak = 1;
-    }
-}
-
-// ===== TOAST =====
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-
-    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('hiding');
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
-}
-
-function spawnFloatRating(delta) {
-    const el = document.createElement('div');
-    el.className = `float-rating ${delta >= 0 ? 'pos' : 'neg'}`;
-    el.textContent = (delta >= 0 ? '+' : '') + delta;
-    el.style.left = '50%';
-    el.style.top  = '45%';
-    el.style.transform = 'translateX(-50%)';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1300);
-}
-
-// ===== RIPPLE EFFECT HELPER =====
-function initButtonRipples() {
-    document.addEventListener('click', (e) => {
-        const btn = e.target.closest('.btn-primary, .btn-secondary, .btn-ghost, .option-btn');
-        if (btn && !btn.disabled && window.animations) {
-            animations.ripple(btn, e);
-        }
-    });
-}
-
-// ===== UTILITY =====
-function todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-}
-function yesterdayKey() {
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-}
-function setEl(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-}
-function timeAgo(ts) {
-    const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60)    return 'just now';
-    if (s < 3600)  return `${Math.floor(s/60)}m ago`;
-    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
-    return `${Math.floor(s/86400)}d ago`;
-}
-
-// ============================================================
-//  PREDICTIONS MODULE (keeping existing code - no changes needed)
-// ============================================================
-
-const PREDICTION_QUESTIONS = [
-    {
-        id: 'q1',
-        category: 'Index',
-        text: 'Will Nifty 50 close above its current level by end of this week?',
-        description: 'Based on technical setup, macro flow, and FII/DII data.',
-        disclaimer: 'For educational purposes only. Not financial advice.'
-    },
-    {
-        id: 'q2',
-        category: 'Crypto',
-        text: 'Will Bitcoin trade above $70,000 at any point this week?',
-        description: 'Consider ETF flow trends, macro risk sentiment, and on-chain data.',
-        disclaimer: 'Crypto markets are highly volatile. Educational only.'
-    },
-    {
-        id: 'q3',
-        category: 'Macro',
-        text: 'Will the US Dollar Index (DXY) weaken vs the Indian Rupee this week?',
-        description: 'Factor in Fed rhetoric, RBI stance, and crude oil impact on INR.',
-        disclaimer: 'FX forecasting involves significant uncertainty.'
-    }
-];
-
-let predictionAnswers  = { q1: null, q2: null, q3: null };
-let predTimerInterval  = null;
-const predChartInstances = {};
-
-function getCurrentWeekKey() {
-    const now  = new Date();
-    const year = now.getFullYear();
-    const startOfYear = new Date(year, 0, 1);
-    const week = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-    return `${year}-W${String(week).padStart(2, '0')}`;
-}
-
-function getTimeUntilWeekEnd() {
-    const now    = new Date();
-    const endOfWeek = new Date(now);
-    endOfWeek.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7);
-    endOfWeek.setHours(23, 59, 59, 999);
-    const diff   = endOfWeek - now;
-    return {
-        days:    Math.floor(diff / 86400000),
-        hours:   Math.floor((diff % 86400000) / 3600000),
-        minutes: Math.floor((diff % 3600000) / 60000),
-        seconds: Math.floor((diff % 60000) / 1000)
-    };
-}
-
-function formatTimeRemaining({ days, hours, minutes, seconds }) {
-    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-    return `${minutes}m ${seconds}s`;
-}
-
-async function loadPredictions() {
-    if (!currentUser) { showSection('login'); return; }
-
-    if (predTimerInterval) { clearInterval(predTimerInterval); predTimerInterval = null; }
-
-    const weekKey = getCurrentWeekKey();
-
-    updatePredictionTimer();
-    predTimerInterval = setInterval(updatePredictionTimer, 1000);
-
-    try {
-        const userPredRef  = db.collection('userPredictions').doc(currentUser.username);
-        const userPredSnap = await userPredRef.get();
-
-        const hasSubmitted = userPredSnap.exists &&
-                             userPredSnap.data()[weekKey] &&
-                             userPredSnap.data()[weekKey].submitted;
-
-        if (hasSubmitted) {
-            document.getElementById('predForecastView').style.display = 'none';
-            document.getElementById('predResultsView').style.display  = 'block';
-            await renderPredictionResults(weekKey);
-        } else {
-            document.getElementById('predForecastView').style.display = 'block';
-            document.getElementById('predResultsView').style.display  = 'none';
-            renderPredictionQuestions();
-        }
-    } catch (err) {
-        console.error('Error loading predictions:', err);
-        showToast('Error loading predictions', 'error');
-    }
-}
-
-function updatePredictionTimer() {
-    const el = document.getElementById('predTimeRemaining');
-    if (!el) return;
-    el.textContent = formatTimeRemaining(getTimeUntilWeekEnd());
-}
-
-function renderPredictionQuestions() {
-    predictionAnswers = { q1: null, q2: null, q3: null };
-
-    const container = document.getElementById('predQuestionsContainer');
-    if (!container) return;
-
-    container.innerHTML = PREDICTION_QUESTIONS.map((q, i) => `
-        <div class="pred-question-card" style="animation-delay:${i * 0.08}s">
-            <div class="pred-q-header">
-                <span class="pred-q-num">Q${i + 1}</span>
-                <span class="pred-q-category">${q.category}</span>
-            </div>
-            <h3 class="pred-q-text">${q.text}</h3>
-            <p class="pred-q-desc">${q.description}</p>
-
-            <div class="pred-slider-wrap">
-                <div class="pred-slider-label-row">
-                    <span class="pred-slider-side low">Unlikely</span>
-                    <div class="pred-value-pill">
-                        <span class="pred-value-num mono" id="value_${q.id}">50</span>
-                        <span class="pred-value-pct">%</span>
-                    </div>
-                    <span class="pred-slider-side high">Likely</span>
-                </div>
-                <div class="pred-range-track">
-                    <div class="pred-range-fill" id="fill_${q.id}" style="width:50%"></div>
-                    <input type="range" class="pred-range-input" id="slider_${q.id}"
-                           min="0" max="100" value="50"
-                           oninput="updatePredictionValue('${q.id}', this.value)">
-                </div>
-                <div class="pred-range-ticks">
-                    <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
-                </div>
-            </div>
-
-            <div class="pred-disclaimer">${q.disclaimer}</div>
-        </div>
-    `).join('');
-
-    const btn = document.getElementById('predSubmitBtn');
-    if (btn) {
-        btn.disabled     = true;
-        btn.innerHTML    = 'Submit Forecasts <span class="btn-arrow">→</span>';
-    }
-    const hint = document.querySelector('.pred-submit-hint');
-    if (hint) hint.style.display = 'block';
-}
-
-function updatePredictionValue(questionId, value) {
-    const num     = parseInt(value);
-    const valueEl = document.getElementById(`value_${questionId}`);
-    const fillEl  = document.getElementById(`fill_${questionId}`);
-
-    if (valueEl) valueEl.textContent = num;
-    if (fillEl)  fillEl.style.width  = num + '%';
-
-    const pill = valueEl?.closest('.pred-value-pill');
-    if (pill) {
-        pill.className = 'pred-value-pill';
-        if (num >= 70)      pill.classList.add('prob-high');
-        else if (num <= 30) pill.classList.add('prob-low');
-    }
-
-    predictionAnswers[questionId] = num;
-
-    const allSet = Object.values(predictionAnswers).every(v => v !== null);
-    const btn    = document.getElementById('predSubmitBtn');
-    const hint   = document.querySelector('.pred-submit-hint');
-    if (btn) btn.disabled = !allSet;
-    if (hint) hint.style.display = allSet ? 'none' : 'block';
-}
-
-async function submitPredictions() {
-    if (!currentUser) return;
-
-    const allSet = Object.values(predictionAnswers).every(v => v !== null);
-    if (!allSet) { showToast('Please move all three sliders first.', 'warning'); return; }
-
-    const weekKey   = getCurrentWeekKey();
-    const timestamp = Date.now();
-    const submitBtn = document.getElementById('predSubmitBtn');
-
-    submitBtn.disabled   = true;
-    submitBtn.innerHTML  = 'Submitting...';
-
-    try {
-        const batch = db.batch();
-
-        PREDICTION_QUESTIONS.forEach(q => {
-            const predRef = db.collection('predictions')
-                              .doc(weekKey)
-                              .collection(q.id)
-                              .doc(currentUser.username);
-            batch.set(predRef, {
-                probability: predictionAnswers[q.id],
-                timestamp,
-                username: currentUser.username
-            });
-        });
-
-        const userPredRef = db.collection('userPredictions').doc(currentUser.username);
-        batch.set(userPredRef, {
-            [weekKey]: {
-                submitted: true,
-                timestamp,
-                answers: [predictionAnswers.q1, predictionAnswers.q2, predictionAnswers.q3]
-            }
-        }, { merge: true });
-
-        await batch.commit();
-
-        showToast('✅ Forecasts submitted!', 'success');
-
-        document.getElementById('predForecastView').style.display = 'none';
-        document.getElementById('predResultsView').style.display  = 'block';
-        await renderPredictionResults(weekKey);
-
-    } catch (err) {
-        console.error('Error submitting predictions:', err);
-        showToast('Submission failed. Check your connection.', 'error');
-        submitBtn.disabled  = false;
-        submitBtn.innerHTML = 'Submit Forecasts <span class="btn-arrow">→</span>';
-    }
-}
-
-async function renderPredictionResults(weekKey) {
-    const container = document.getElementById('predResultsContainer');
-    if (!container) return;
-    container.innerHTML = `
-        <div class="pred-results-loading">
-            <div class="pred-loading-spinner"></div>
-            Loading crowd data...
-        </div>`;
-
-    Object.values(predChartInstances).forEach(c => c.destroy());
-
-    try {
-        const userPredRef  = db.collection('userPredictions').doc(currentUser.username);
-        const userPredSnap = await userPredRef.get();
-        const userAnswers  = userPredSnap.data()[weekKey].answers;
-
-        const resultsHTML = await Promise.all(PREDICTION_QUESTIONS.map(async (q, idx) => {
-            const qSnap    = await db.collection('predictions').doc(weekKey).collection(q.id).get();
-            const allProbs = [];
-            qSnap.forEach(doc => allProbs.push(doc.data().probability));
-
-            const userProb = userAnswers[idx];
-            const mean     = allProbs.length > 0 ? Math.round(allProbs.reduce((a, b) => a + b, 0) / allProbs.length) : userProb;
-            const diff     = userProb - mean;
-            const diffSign = diff >= 0 ? '+' : '';
-            const diffCls  = diff >= 0 ? 'pos' : 'neg';
-            const count    = allProbs.length;
-
-            return `
-                <div class="pred-result-card" style="animation-delay:${idx * 0.1}s">
-                    <div class="pred-result-card-head">
-                        <span class="pred-q-num">Q${idx + 1}</span>
-                        <span class="pred-q-category">${q.category}</span>
-                    </div>
-                    <h3 class="pred-result-question">${q.text}</h3>
-
-                    <div class="pred-result-stats">
-                        <div class="pred-stat">
-                            <div class="pred-stat-value user mono">${userProb}%</div>
-                            <div class="pred-stat-label">Your Forecast</div>
-                        </div>
-                        <div class="pred-stat-divider"></div>
-                        <div class="pred-stat">
-                            <div class="pred-stat-value mono">${mean}%</div>
-                            <div class="pred-stat-label">Crowd Mean</div>
-                        </div>
-                        <div class="pred-stat-divider"></div>
-                        <div class="pred-stat">
-                            <div class="pred-stat-value ${diffCls} mono">${diffSign}${diff}%</div>
-                            <div class="pred-stat-label">vs Crowd</div>
-                        </div>
-                        <div class="pred-stat-divider"></div>
-                        <div class="pred-stat">
-                            <div class="pred-stat-value mono">${count}</div>
-                            <div class="pred-stat-label">Participants</div>
-                        </div>
-                    </div>
-
-                    <div class="pred-chart-wrap">
-                        <canvas id="chart_${q.id}" height="160"></canvas>
-                    </div>
-                </div>`;
-        }));
-
-        container.innerHTML = resultsHTML.join('');
-
-        setTimeout(() => {
-            PREDICTION_QUESTIONS.forEach((q, idx) => {
-                renderPredictionChart(q.id, weekKey, userAnswers[idx]);
-            });
-        }, 120);
-
-    } catch (err) {
-        console.error('Error rendering results:', err);
-        container.innerHTML = '<div class="pred-error">Error loading results. Try refreshing.</div>';
-    }
-}
-
-async function renderPredictionChart(questionId, weekKey, userProb) {
-    const canvas = document.getElementById(`chart_${questionId}`);
-    if (!canvas) return;
-
-    const qSnap    = await db.collection('predictions').doc(weekKey).collection(questionId).get();
-    const allProbs = [];
-    qSnap.forEach(doc => allProbs.push(doc.data().probability));
-
-    const buckets      = { '0–20': 0, '21–40': 0, '41–60': 0, '61–80': 0, '81–100': 0 };
-    const bucketKeys   = Object.keys(buckets);
-    const userBucket   = getProbabilityBucket(userProb);
-    allProbs.forEach(p => { buckets[getProbabilityBucket(p)]++; });
-
-    const bgColors     = bucketKeys.map(b =>
-        b === userBucket ? 'rgba(0,229,255,0.75)' : 'rgba(61,142,240,0.35)'
-    );
-    const borderColors = bucketKeys.map(b =>
-        b === userBucket ? '#00e5ff' : '#3d8ef0'
-    );
-
-    if (predChartInstances[questionId]) predChartInstances[questionId].destroy();
-
-    predChartInstances[questionId] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: bucketKeys,
-            datasets: [{
-                label: 'Forecasters',
-                data: Object.values(buckets),
-                backgroundColor: bgColors,
-                borderColor: borderColors,
-                borderWidth: 2,
-                borderRadius: 6,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#131d2e',
-                    titleColor: '#e8edf5',
-                    bodyColor: '#7b92b2',
-                    borderColor: '#1e2d47',
-                    borderWidth: 1,
-                    padding: 10,
-                    callbacks: {
-                        title: (items) => `Probability range: ${items[0].label}%`,
-                        label: (item)  => ` ${item.raw} forecaster${item.raw !== 1 ? 's' : ''}`
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: '#3d5070', stepSize: 1, font: { family: "'JetBrains Mono', monospace", size: 11 } },
-                    grid:  { color: '#192336' }
-                },
-                x: {
-                    ticks: { color: '#7b92b2', font: { size: 11 } },
-                    grid:  { display: false }
-                }
-            }
-        }
-    });
-}
-
-function getProbabilityBucket(prob) {
-    if (prob <= 20)  return '0–20';
-    if (prob <= 40)  return '21–40';
-    if (prob <= 60)  return '41–60';
-    if (prob <= 80)  return '61–80';
-    return '81–100';
-}
-
-// ============================================================
-//  NOTES MODULE (existing code - unchanged)
-// ============================================================
-
-let currentSlideIndex = 0;
-let currentChapterData = null;
-
-const CHAPTERS = {
-    fundamentals: {
-        title: 'Stock Market Fundamentals',
-        slides: [
-            {
-                title: 'Welcome to Stock Markets',
-                subtitle: 'Your journey to financial literacy starts here',
-                content: `<div class="slide-text-content">
-                    <p>The stock market is where shares of public companies are bought and sold. It's a marketplace that connects buyers and sellers, enabling <strong>price discovery</strong> and <strong>capital formation</strong>.</p>
-                    <p><strong>Key Point:</strong> You're not just trading pieces of paper—you're becoming a part-owner of real businesses.</p>
-                </div>`,
-                visual: `<div class="slide-visual-hero">
-                    <svg viewBox="0 0 200 140" class="slide-svg">
-                        <defs>
-                            <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" style="stop-color:var(--green);stop-opacity:0.8" />
-                                <stop offset="100%" style="stop-color:var(--green);stop-opacity:0.3" />
-                            </linearGradient>
-                        </defs>
-                        <rect x="20" y="40" width="30" height="75" fill="url(#grad1)" rx="4" class="chart-bar"/>
-                        <rect x="60" y="55" width="30" height="60" fill="var(--cyan)" opacity="0.75" rx="4" class="chart-bar" style="animation-delay:0.1s"/>
-                        <rect x="100" y="30" width="30" height="85" fill="var(--blue)" opacity="0.75" rx="4" class="chart-bar" style="animation-delay:0.2s"/>
-                        <rect x="140" y="45" width="30" height="70" fill="var(--amber)" opacity="0.75" rx="4" class="chart-bar" style="animation-delay:0.3s"/>
-                        <line x1="10" y1="120" x2="190" y2="120" stroke="var(--border-bright)" stroke-width="2"/>
-                        <line x1="10" y1="20" x2="10" y2="120" stroke="var(--border-bright)" stroke-width="2"/>
-                    </svg>
-                    <p class="slide-caption">Markets reflect collective business performance</p>
-                </div>`
-            }
-        ]
-    }
-};
-
-function openChapter(chapterId) {
-    currentChapterData = CHAPTERS[chapterId];
-    currentSlideIndex = 0;
-    document.getElementById('notesChapterView').style.display = 'none';
-    document.getElementById('notesLessonView').style.display = 'block';
-    renderSlides();
-    updateSlideNav();
-}
-
-function closeLesson() {
-    document.getElementById('notesChapterView').style.display = 'block';
-    document.getElementById('notesLessonView').style.display = 'none';
-    currentChapterData = null;
-    currentSlideIndex = 0;
-}
-
-function renderSlides() {
-    if (!currentChapterData) return;
-    const wrapper = document.getElementById('notesSlideWrapper');
-    const totalSlides = currentChapterData.slides.length;
-    document.getElementById('notesTotalSlides').textContent = totalSlides;
-    wrapper.innerHTML = currentChapterData.slides.map((slide, idx) => `
-        <div class="notes-slide ${idx === 0 ? 'active' : ''}" data-slide-index="${idx}">
-            <div class="slide-header">
-                <h2 class="slide-title">${slide.title}</h2>
-                <p class="slide-subtitle">${slide.subtitle}</p>
-            </div>
-            <div class="slide-body">
-                <div class="slide-content">${slide.content}</div>
-                ${slide.visual ? `<div class="slide-visual">${slide.visual}</div>` : ''}
-            </div>
-        </div>
-    `).join('');
-    const dotsContainer = document.getElementById('notesProgressDots');
-    dotsContainer.innerHTML = currentChapterData.slides.map((_, idx) =>
-        `<span class="progress-dot ${idx === 0 ? 'active' : ''}" data-dot-index="${idx}"></span>`
-    ).join('');
-}
-
-function nextSlide() {
-    if (!currentChapterData) return;
-    if (currentSlideIndex >= currentChapterData.slides.length - 1) return;
-    const currentSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
-    currentSlideIndex++;
-    const nextSlideEl = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
-    currentSlide.style.animation = 'slideOutLeft 0.4s ease forwards';
-    setTimeout(() => {
-        currentSlide.classList.remove('active');
-        currentSlide.style.animation = '';
-        nextSlideEl.classList.add('active');
-        nextSlideEl.style.animation = 'slideInRight 0.4s ease forwards';
-        updateSlideNav();
-    }, 400);
-}
-
-function previousSlide() {
-    if (!currentChapterData) return;
-    if (currentSlideIndex <= 0) return;
-    const currentSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
-    currentSlideIndex--;
-    const prevSlide = document.querySelector(`.notes-slide[data-slide-index="${currentSlideIndex}"]`);
-    currentSlide.style.animation = 'slideOutRight 0.4s ease forwards';
-    setTimeout(() => {
-        currentSlide.classList.remove('active');
-        currentSlide.style.animation = '';
-        prevSlide.classList.add('active');
-        prevSlide.style.animation = 'slideInLeft 0.4s ease forwards';
-        updateSlideNav();
-    }, 400);
-}
-
-function updateSlideNav() {
-    if (!currentChapterData) return;
-    const prevBtn = document.getElementById('notesPrevBtn');
-    const nextBtn = document.getElementById('notesNextBtn');
-    const slideNum = document.getElementById('notesSlideNum');
-    slideNum.textContent = currentSlideIndex + 1;
-    prevBtn.disabled = currentSlideIndex === 0;
-    nextBtn.disabled = currentSlideIndex === currentChapterData.slides.length - 1;
-    document.querySelectorAll('.progress-dot').forEach((dot, idx) => {
-        dot.classList.toggle('active', idx === currentSlideIndex);
-        dot.classList.toggle('completed', idx < currentSlideIndex);
-    });
-    if (currentSlideIndex === currentChapterData.slides.length - 1) {
-        nextBtn.innerHTML = `Finish <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>`;
-        nextBtn.onclick = function() {
-            showToast('Chapter completed! 🎉', 'success');
-            closeLesson();
+            x += vx;
+            y += velocityY;
+            velocityY += gravity;
+            rotation += rotationSpeed;
+            opacity = 1 - progress;
+
+            particle.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+            particle.style.opacity = opacity;
+
+            requestAnimationFrame(animate);
         };
-    } else {
-        nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 18 15 12 9 6"/></svg>`;
-        nextBtn.onclick = nextSlide;
+
+        requestAnimationFrame(animate);
+    }
+
+    // ============================================================
+    //  NUMBER COUNT-UP ANIMATION
+    // ============================================================
+    countUp(element, start, end, duration = 1000, formatter = null) {
+        const startTime = Date.now();
+        const range = end - start;
+
+        const easeOutQuart = t => 1 - Math.pow(1 - t, 4);
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeOutQuart(progress);
+            const current = start + (range * easedProgress);
+
+            const value = progress === 1 ? end : current;
+            element.textContent = formatter ? formatter(value) : Math.round(value);
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+
+        requestAnimationFrame(animate);
+    }
+
+    // ============================================================
+    //  SKELETON LOADER
+    // ============================================================
+    showSkeleton(container, type = 'leaderboard', count = 10) {
+        const templates = {
+            leaderboard: () => `
+                <div class="skeleton-row" style="animation-delay: ${Math.random() * 0.2}s">
+                    <div class="skeleton-item shimmer" style="width:60px; height:20px; border-radius:4px;"></div>
+                    <div class="skeleton-item shimmer" style="width:140px; height:20px; border-radius:4px;"></div>
+                    <div class="skeleton-item shimmer" style="width:80px; height:20px; border-radius:4px;"></div>
+                    <div class="skeleton-item shimmer" style="width:70px; height:20px; border-radius:4px;"></div>
+                </div>
+            `,
+            card: () => `
+                <div class="skeleton-card">
+                    <div class="skeleton-item shimmer" style="width:100%; height:180px; border-radius:12px; margin-bottom:16px;"></div>
+                    <div class="skeleton-item shimmer" style="width:80%; height:24px; border-radius:4px; margin-bottom:12px;"></div>
+                    <div class="skeleton-item shimmer" style="width:60%; height:16px; border-radius:4px;"></div>
+                </div>
+            `,
+            stats: () => `
+                <div class="skeleton-stat">
+                    <div class="skeleton-item shimmer" style="width:100px; height:36px; border-radius:8px; margin-bottom:8px;"></div>
+                    <div class="skeleton-item shimmer" style="width:60px; height:14px; border-radius:4px;"></div>
+                </div>
+            `
+        };
+
+        const template = templates[type] || templates.leaderboard;
+        container.innerHTML = Array(count).fill().map(() => template()).join('');
+        container.classList.add('skeleton-loading');
+    }
+
+    // ============================================================
+    //  STAGGER ANIMATION — Reveal items sequentially
+    // ============================================================
+    stagger(elements, options = {}) {
+        const {
+            delay = 80,
+            animation = 'fadeInUp',
+            distance = 20
+        } = options;
+
+        elements.forEach((el, index) => {
+            el.style.opacity = '0';
+            el.style.transform = `translateY(${distance}px)`;
+            
+            setTimeout(() => {
+                el.style.transition = 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, index * delay);
+        });
+    }
+
+    // ============================================================
+    //  PULSE EFFECT — Attention grabber
+    // ============================================================
+    pulse(element, options = {}) {
+        const { duration = 600, scale = 1.05, color = null } = options;
+        
+        const originalTransform = element.style.transform;
+        const originalBg = element.style.background;
+
+        element.style.transition = `transform ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+        element.style.transform = `scale(${scale})`;
+        
+        if (color) {
+            element.style.background = color;
+        }
+
+        setTimeout(() => {
+            element.style.transform = originalTransform;
+            if (color) {
+                setTimeout(() => {
+                    element.style.background = originalBg;
+                }, duration / 2);
+            }
+        }, duration);
+    }
+
+    // ============================================================
+    //  SHAKE ANIMATION — Error feedback
+    // ============================================================
+    shake(element, options = {}) {
+        const { intensity = 10, duration = 500 } = options;
+        
+        element.style.animation = 'none';
+        setTimeout(() => {
+            element.style.animation = `shake ${duration}ms cubic-bezier(0.36, 0.07, 0.19, 0.97)`;
+        }, 10);
+
+        setTimeout(() => {
+            element.style.animation = '';
+        }, duration);
+    }
+
+    // ============================================================
+    //  RIPPLE EFFECT — Material-style click feedback
+    // ============================================================
+    ripple(element, event) {
+        const ripple = document.createElement('span');
+        const rect = element.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const x = event.clientX - rect.left - size / 2;
+        const y = event.clientY - rect.top - size / 2;
+
+        ripple.style.cssText = `
+            position: absolute;
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            background: rgba(0, 229, 255, 0.3);
+            transform: translate(${x}px, ${y}px) scale(0);
+            animation: rippleEffect 0.6s ease-out;
+            pointer-events: none;
+        `;
+
+        element.style.position = 'relative';
+        element.style.overflow = 'hidden';
+        element.appendChild(ripple);
+
+        setTimeout(() => ripple.remove(), 600);
+    }
+
+    // ============================================================
+    //  TYPEWRITER EFFECT
+    // ============================================================
+    typewriter(element, text, options = {}) {
+        const { speed = 50, cursor = true, onComplete = null } = options;
+        let index = 0;
+        element.textContent = '';
+
+        if (cursor) {
+            element.insertAdjacentHTML('afterend', '<span class="typewriter-cursor">|</span>');
+        }
+
+        const type = () => {
+            if (index < text.length) {
+                element.textContent += text.charAt(index);
+                index++;
+                setTimeout(type, speed + Math.random() * 20);
+            } else {
+                if (cursor) {
+                    const cursorEl = element.nextElementSibling;
+                    if (cursorEl && cursorEl.classList.contains('typewriter-cursor')) {
+                        setTimeout(() => cursorEl.remove(), 500);
+                    }
+                }
+                if (onComplete) onComplete();
+            }
+        };
+
+        type();
+    }
+
+    // ============================================================
+    //  SCROLL-TRIGGERED ANIMATIONS
+    // ============================================================
+    setupIntersectionObservers() {
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('aos-animate');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        // Observe elements with [data-aos] attribute
+        document.querySelectorAll('[data-aos]').forEach(el => {
+            observer.observe(el);
+        });
+
+        this.observers.set('aos', observer);
+    }
+
+    setupScrollAnimations() {
+        let ticking = false;
+        let lastScrollY = 0;
+
+        const updateParallax = () => {
+            const scrollY = window.scrollY;
+            const elements = document.querySelectorAll('[data-parallax]');
+
+            elements.forEach(el => {
+                const speed = parseFloat(el.dataset.parallax) || 0.5;
+                const yPos = -(scrollY * speed);
+                el.style.transform = `translateY(${yPos}px)`;
+            });
+
+            ticking = false;
+        };
+
+        window.addEventListener('scroll', () => {
+            lastScrollY = window.scrollY;
+            if (!ticking) {
+                requestAnimationFrame(updateParallax);
+                ticking = true;
+            }
+        });
+    }
+
+    // ============================================================
+    //  LOADING STATE MANAGER
+    // ============================================================
+    showLoading(container, message = 'Loading...') {
+        container.innerHTML = `
+            <div class="loading-state">
+                <div class="loading-spinner-pro"></div>
+                <p class="loading-message">${message}</p>
+            </div>
+        `;
+    }
+
+    hideLoading(container) {
+        const loadingState = container.querySelector('.loading-state');
+        if (loadingState) {
+            loadingState.style.opacity = '0';
+            setTimeout(() => loadingState.remove(), 200);
+        }
+    }
+
+    // ============================================================
+    //  SUCCESS CHECKMARK ANIMATION
+    // ============================================================
+    showSuccess(container, message = 'Success!') {
+        const successEl = document.createElement('div');
+        successEl.className = 'success-checkmark-container';
+        successEl.innerHTML = `
+            <svg class="success-checkmark" viewBox="0 0 52 52">
+                <circle class="success-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                <path class="success-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+            <p class="success-message">${message}</p>
+        `;
+        
+        container.appendChild(successEl);
+
+        setTimeout(() => {
+            successEl.classList.add('success-show');
+        }, 10);
+
+        return successEl;
     }
 }
+
+// ============================================================
+//  GLOBAL ANIMATION UTILITIES
+// ============================================================
+
+const animations = new AnimationEngine();
+
+// Auto-initialize on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => animations.init());
+} else {
+    animations.init();
+}
+
+// Export for use in app.js
+window.AnimationEngine = AnimationEngine;
+window.animations = animations;
