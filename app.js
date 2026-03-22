@@ -2,15 +2,6 @@
 //  MARKETIQ — Main Application Logic
 //  Firebase Firestore + Full Game Logic
 // ============================================================
-// 🔥 Firebase Setup
-const firebaseConfig = {
-  apiKey: "AIzaSyArmXio3hlIxrECYuKxKR0EFuslB_zLJCE",
-  authDomain: "marketiq-mvp.firebaseapp.com",
-  projectId: "marketiq-mvp",
-  storageBucket: "marketiq-mvp.appspot.com",
-  messagingSenderId: "661653059522",
-  appId: "1:661653059522:web:14c9de36655ec32a0f885b"
-};
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
