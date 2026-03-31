@@ -13,12 +13,13 @@
 // ============================================================
 
 const firebaseConfig = {
-    apiKey:            "AIzaSyAbc123def456...",
-    authDomain:        "marketiq-mvp.firebaseapp.com",
-    projectId:         "marketiq-mvp",
-    storageBucket:     "marketiq-mvp.appspot.com",
-    messagingSenderId: "987654321",
-    appId:             "1:987654321:web:xyz789"
+  apiKey: "AIzaSyBDbsf7hi8fAygqhPxenqkrTaRE9mweHNs",
+  authDomain: "marketiq-project.firebaseapp.com",
+  projectId: "marketiq-project",
+  storageBucket: "marketiq-project.firebasestorage.app",
+  messagingSenderId: "536929615909",
+  appId: "1:536929615909:web:948a4af0ab9381f8c0bfcc",
+  measurementId: "G-TWNR47JPZD"
 };
 
 // ============================================================
