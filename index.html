@@ -738,19 +738,23 @@
         </div>
     </div>
 
-    <!-- TradingView Lightweight Charts -->
+    <!-- TradingView Lightweight Charts (UMD — must stay non-module) -->
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
-    <!-- FIREBASE SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
-    <!-- Chart.js for Predictions -->
+    <!-- Chart.js for Predictions (UMD — must stay non-module) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-    <!-- APP SCRIPTS -->
-    <script src="firebase-config.js"></script>
+    <!--
+        PUZZLE DATA — loaded as a plain script so its globals (DAILY_PUZZLES etc.)
+        are available to app.js. No Firebase imports needed here.
+    -->
     <script src="puzzles.js"></script>
-    <script src="app.js"></script>
+
+    <!--
+        APP SCRIPTS — Firebase v9+ Modular SDK uses ES Modules.
+        Both firebase-config.js and app.js use `import`, so type="module" is required.
+        Modules are deferred automatically; no extra `defer` attribute needed.
+    -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
