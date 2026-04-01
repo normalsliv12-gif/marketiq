@@ -1,16 +1,10 @@
 // ============================================================
 //  FIREBASE CONFIGURATION — MarketIQ
+//  Firebase v9+ Modular SDK
 // ============================================================
-//
-//  ⚠️  YOU MUST FILL IN YOUR OWN FIREBASE CREDENTIALS BELOW
-//
-//  How to get these values:
-//  1. Go to https://console.firebase.google.com
-//  2. Create a project (or open an existing one)
-//  3. Click the </> (Web) icon to add a web app
-//  4. Copy the firebaseConfig object and paste the values below
-//
-// ============================================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, enableMultiTabIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBDbsf7hi8fAygqhPxenqkrTaRE9mweHNs",
@@ -22,22 +16,17 @@ const firebaseConfig = {
   measurementId: "G-TWNR47JPZD"
 };
 
-// ============================================================
-//  Initialize Firebase — DO NOT EDIT BELOW THIS LINE
-// ============================================================
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// Enable offline persistence (optional but nice for mobile)
-db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+// Enable offline persistence (multi-tab safe)
+enableMultiTabIndexedDbPersistence(db).catch(err => {
     if (err.code === 'failed-precondition') {
-        // Multiple tabs open — persistence only works in one tab at a time
-        console.warn("Firebase persistence unavailable: multiple tabs open.");
+        console.warn("Firebase persistence: multiple tabs open — single-tab mode.");
     } else if (err.code === 'unimplemented') {
-        // Browser doesn't support persistence
         console.warn("Firebase persistence not supported in this browser.");
     }
 });
 
-console.log("✅ Firebase initialized for MarketIQ");
+export { db };
+console.log("✅ Firebase v10 (Modular) initialized for MarketIQ");
